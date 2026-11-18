@@ -37,6 +37,7 @@ export function superficieM2(res) {
   return a;
 }
 export function horasEstimadas(res) {
+  if (Number.isFinite(res.horas)) return res.horas;   // o modelo (tubagem) traz a sua própria estimativa
   const metros = res.pecas.reduce((s, p) => s + p.L, 0) / 1000;
   return Math.round((0.05 * res.pecas.length + 0.12 * res.ligacoes + 0.15 * metros) * 2) / 2;
 }
@@ -70,7 +71,8 @@ export function custo(trabalho, res, plano, precos) {
   for (const a of res.acessorios) {
     const pu = precos.acessorios && precos.acessorios[a.ref];
     if (!(pu > 0)) semPreco.push(a.ref);
-    cAcess += linha((ACESSORIOS[a.ref] || {}).nome || a.ref, a.qtd, (ACESSORIOS[a.ref] || {}).un || 'un', n0(pu));
+    // fator: alguns acessórios (tubagem) têm o preço de tabela para DN50 e escalam com o diâmetro
+    cAcess += linha(nomeAcessorio(a), a.qtd, (ACESSORIOS[a.ref] || {}).un || 'un', n0(pu) * (a.fator > 0 ? a.fator : 1));
   }
   // Mão de obra de oficina
   const manual = trabalho.horasOficina;
@@ -95,4 +97,10 @@ export function custo(trabalho, res, plano, precos) {
   return { material: cMaterial, paineis: cPaineis, acessorios: cAcess, oficinaH, oficina: cOficina, acabamento: cAcab,
     montagem: cMont, deslocacao: cDesl, total, margem, venda, iva, vendaIva: venda + iva, linhas,
     semPreco: [...new Set(semPreco)], pesoKg: kg, superficieM2: m2 };
+}
+
+/** Nome do acessório para as listas; nos de tubagem troca «(preço para DN50)» pelo diâmetro do trabalho. */
+export function nomeAcessorio(a) {
+  const nome = (ACESSORIOS[a.ref] || {}).nome || a.ref;
+  return a.sufixo ? nome.replace(/\s*\(preço para DN50\)/, '') + ' ' + a.sufixo : nome;
 }

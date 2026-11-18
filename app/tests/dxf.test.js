@@ -71,3 +71,11 @@ test('medição em metros é convertida para mm e arredondada', () => {
   eq(trocosDeMedicao([[0, 0], [2.5004, 0]], 1000)[0].comp, 2500);
   eq(trocosDeMedicao([[0, 0]], 1), []);
 });
+
+// --- tubagem ---
+import { trocosDeTubagem } from '../js/dxf.js';
+test('medição numa planta vira percurso de tubagem pelo eixo mais próximo', () => {
+  const t = trocosDeTubagem([[0, 0], [3, 0.1], [3, 2], [1, 2], [1, 0.5]], 1000);
+  eq(t.map(x => x.dir), ['dir', 'frente', 'esq', 'tras']);
+  eq(t[0].comp, 3002); eq(trocosDeTubagem([[0, 0]], 1), []);
+});

@@ -1,11 +1,11 @@
 // Modo sem rede: guarda todos os ficheiros da app. Mudar a versão ao publicar alterações.
-const VERSAO = 'nc-v4';
+const VERSAO = 'nc-v5';
 const FICHEIROS = ['./', 'index.html', 'manifest.webmanifest', 'css/app.css', 'css/print.css',
   'img/icon.svg', 'img/icon-192.png', 'img/icon-512.png', 'img/logo-nc.svg',
   'vendor/three.module.min.js', 'vendor/OrbitControls.js',
   'js/app.js', 'js/store.js', 'js/catalogo.js', 'js/calc.js', 'js/corte.js', 'js/custo.js', 'js/desenho2d.js',
   'js/vista3d.js', 'js/formularios.js', 'js/folhas.js', 'js/fmt.js', 'js/dxf.js', 'js/articulado.js', 'js/importar.js', 'js/pin.js',
-  'js/modelos/util.js', 'js/modelos/guarda.js', 'js/modelos/corrimao.js', 'js/modelos/portao.js'];
+  'js/modelos/util.js', 'js/modelos/guarda.js', 'js/modelos/corrimao.js', 'js/modelos/portao.js', 'js/modelos/tubagem.js'];
 
 self.addEventListener('install', e => e.waitUntil(caches.open(VERSAO).then(c => c.addAll(FICHEIROS)).then(() => self.skipWaiting())));
 self.addEventListener('activate', e => e.waitUntil(

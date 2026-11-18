@@ -19,11 +19,18 @@ function add(id, nome, forma, o) { PERFIS[id] = { id, nome, forma, ...o }; }
 [10, 12, 16].forEach(d => add(`varao${d}`, `Varão redondo Ø${d}`, 'varao', { d }));
 [10, 12, 14].forEach(a => add(`vq${a}`, `Varão quadrado ${a}×${a}`, 'vq', { a }));
 
+// Tubo para tubagem (ISO 1127): diâmetro nominal → diâmetro exterior em mm
+export const DIAMETROS = { 15: { de: 21.3 }, 20: { de: 26.9 }, 25: { de: 33.7 }, 32: { de: 42.4 }, 40: { de: 48.3 }, 50: { de: 60.3 }, 65: { de: 76.1 },
+  80: { de: 88.9 }, 100: { de: 114.3 }, 125: { de: 139.7 }, 150: { de: 168.3 }, 200: { de: 219.1 }, 250: { de: 273 }, 300: { de: 323.9 } };
+export const ESPESSURAS = [1.5, 2, 2.6, 3, 4];
+for (const [dn, { de }] of Object.entries(DIAMETROS)) for (const e of ESPESSURAS)
+  add(`tu${dn}x${e}`, `Tubo DN${dn} Ø${String(de).replace('.', ',')}×${String(e).replace('.', ',')}`, 'tu', { d: de, e, dn: +dn });
+
 /** Área da secção em mm². */
 export function area(p) {
   if (!p) return 0;
   switch (p.forma) {
-    case 'tr': return Math.PI / 4 * (p.d ** 2 - (p.d - 2 * p.e) ** 2);
+    case 'tr': case 'tu': return Math.PI / 4 * (p.d ** 2 - (p.d - 2 * p.e) ** 2);
     case 'tq': return p.a ** 2 - (p.a - 2 * p.e) ** 2;
     case 'tret': return p.a * p.b - (p.a - 2 * p.e) * (p.b - 2 * p.e);
     case 'barra': return p.a * p.b;
@@ -36,7 +43,7 @@ export function area(p) {
 export function perimetro(p) {
   if (!p) return 0;
   switch (p.forma) {
-    case 'tr': case 'varao': return Math.PI * p.d;
+    case 'tr': case 'tu': case 'varao': return Math.PI * p.d;
     case 'tq': case 'vq': return 4 * p.a;
     case 'tret': case 'barra': return 2 * (p.a + p.b);
     default: return 0;
@@ -46,7 +53,7 @@ export function perimetro(p) {
 export function dims(perfilId) {
   const p = PERFIS[perfilId];
   if (!p) return { a: 40, b: 40, redondo: false };
-  if (p.forma === 'tr' || p.forma === 'varao') return { a: p.d, b: p.d, redondo: true };
+  if (p.forma === 'tr' || p.forma === 'tu' || p.forma === 'varao') return { a: p.d, b: p.d, redondo: true };
   return { a: p.a, b: p.b || p.a, redondo: false };
 }
 
@@ -58,10 +65,14 @@ export const MATERIAIS = {
     { id: 'nenhum', nome: 'Sem acabamento', modo: 'nenhum', comCor: false, corFixa: '#5a5f66' }] },
   inox304: { nome: 'Inox AISI 304', familia: 'inox', densidade: 7900, corBase: '#c9ccd1', acabamentos: [
     { id: 'escovado', nome: 'Escovado', modo: 'm2', comCor: false, corFixa: '#c2c5ca' },
-    { id: 'polido', nome: 'Polido', modo: 'm2', comCor: false, corFixa: '#e3e6ea' }] },
+    { id: 'polido', nome: 'Polido', modo: 'm2', comCor: false, corFixa: '#e3e6ea' },
+    { id: 'decapado', nome: 'Decapado e passivado', modo: 'm2', comCor: false, corFixa: '#cfd2d6' },
+    { id: 'nenhum', nome: 'Sem acabamento', modo: 'nenhum', comCor: false, corFixa: '#c9ccd1' }] },
   inox316: { nome: 'Inox AISI 316', familia: 'inox', densidade: 7900, corBase: '#c9ccd1', acabamentos: [
     { id: 'escovado', nome: 'Escovado', modo: 'm2', comCor: false, corFixa: '#c2c5ca' },
-    { id: 'polido', nome: 'Polido', modo: 'm2', comCor: false, corFixa: '#e3e6ea' }] },
+    { id: 'polido', nome: 'Polido', modo: 'm2', comCor: false, corFixa: '#e3e6ea' },
+    { id: 'decapado', nome: 'Decapado e passivado', modo: 'm2', comCor: false, corFixa: '#cfd2d6' },
+    { id: 'nenhum', nome: 'Sem acabamento', modo: 'nenhum', comCor: false, corFixa: '#c9ccd1' }] },
   aluminio: { nome: 'Alumínio', familia: 'aluminio', densidade: 2700, corBase: '#d0d3d6', acabamentos: [
     { id: 'lacado', nome: 'Lacado', modo: 'm2', comCor: true },
     { id: 'anodizado', nome: 'Anodizado', modo: 'm2', comCor: false, corFixa: '#cfd2d4' },
@@ -115,6 +126,11 @@ export const ACESSORIOS = {
   batente_fim: { nome: 'Batente de fim de curso', un: 'un' },
   cremalheira: { nome: 'Cremalheira', un: 'm' },
   motor_prep: { nome: 'Chapa de base e preparação para motor', un: 'un' },
+  curva_inox: { nome: 'Curva 90° de soldar (preço para DN50)', un: 'un' },
+  flange_inox: { nome: 'Flange de soldar (preço para DN50)', un: 'un' },
+  tampao_inox: { nome: 'Tampão de soldar (preço para DN50)', un: 'un' },
+  te_inox: { nome: 'Tê de soldar (preço para DN50)', un: 'un' },
+  abracadeira_inox: { nome: 'Abraçadeira de tubo (preço para DN50)', un: 'un' },
 };
 
 export const PRECOS_EXEMPLO = {
@@ -123,8 +139,8 @@ export const PRECOS_EXEMPLO = {
   m2: { vidro: 95, chapa_aco: 28, chapa_inox: 95, chapa_aluminio: 45 },
   acessorios: { sapata: 4.5, fix_lateral: 7, bucha: 0.6, tampa: 0.8, pinca_vidro: 9, suporte_parede: 5.5, curva90: 6,
     dobradica: 8, fechadura: 45, batente_chao: 12, roda: 22, carril: 14, guia_sup: 18, batente_fim: 15,
-    cremalheira: 9, motor_prep: 35 },
+    cremalheira: 9, motor_prep: 35, curva_inox: 9, flange_inox: 18, tampao_inox: 7, te_inox: 14, abracadeira_inox: 4 },
   horaOficina: 28, horaMontagem: 30, deslocacao: 40,
-  acabamento: { pintado: 12, lacado: 16, galvanizado: 0.75, escovado: 8, polido: 18, anodizado: 14 },
+  acabamento: { pintado: 12, lacado: 16, galvanizado: 0.75, escovado: 8, polido: 18, anodizado: 14, decapado: 6 },
   margem: 30, iva: 23, vara: 6000, serra: 3, materialModo: 'varas', desperdicio: 8,
 };

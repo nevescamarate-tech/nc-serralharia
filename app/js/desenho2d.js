@@ -53,11 +53,17 @@ export function alcadoSVG(res) {
   const b = limites(pts);
   const U = Math.max(b.x1 - b.x0, b.y1 - b.y0, 400) / 40;
   for (const pt of res.pontos || []) formas.push(`<circle class="pt" cx="${f(pt.s[0])}" cy="${f(-pt.s[1])}" r="${f(U * 0.22)}"/>`);
-  const yBase = Math.min(b.y0, 0);
-  formas.push(`<line class="chao" x1="${f(b.x0 - U)}" y1="0" x2="${f(b.x1 + U)}" y2="0"/>`);
+  const yBase = Math.min(b.y0, 0), isometrico = (res.cotas || []).some(c => c.tipo === 'l');
+  if (!isometrico) formas.push(`<line class="chao" x1="${f(b.x0 - U)}" y1="0" x2="${f(b.x1 + U)}" y2="0"/>`);
+  else { b.y0 -= U * 2; b.y1 += U * 2; b.x0 -= U * 2; b.x1 += U * 2; }
   let baixo = yBase, esq = b.x0;
   for (const c of res.cotas || []) {
-    if (c.tipo === 'h') { const y = yBase - U * 2.2 * c.nivel; formas.push(cotaH(c.s1, c.s2, y, c.texto, U)); baixo = Math.min(baixo, y - U); }
+    if (c.tipo === 'l') {   // cota livre, ao longo de um troço em qualquer direção (isométrico)
+      const mx = (c.a[0] + c.b[0]) / 2, my = -(c.a[1] + c.b[1]) / 2;
+      let ang = Math.atan2(-(c.b[1] - c.a[1]), c.b[0] - c.a[0]) * 180 / Math.PI;
+      if (ang > 90 || ang <= -90) ang += 180;
+      formas.push(`<g class="cota"><text x="${f(mx)}" y="${f(my - U * 1.1)}" text-anchor="middle" font-size="${f(U * 1.25)}" transform="rotate(${f(ang)} ${f(mx)} ${f(my)})">${c.texto}</text></g>`);
+    } else if (c.tipo === 'h') { const y = yBase - U * 2.2 * c.nivel; formas.push(cotaH(c.s1, c.s2, y, c.texto, U)); baixo = Math.min(baixo, y - U); }
     else { const x = b.x0 - U * 2.2; formas.push(cotaV(x, c.y1, c.y2, c.texto, U)); esq = Math.min(esq, x - U * 1.6); }
   }
   return embrulho({ x0: esq, y0: baixo, x1: b.x1, y1: b.y1 }, U, formas.join(''));

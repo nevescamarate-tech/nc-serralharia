@@ -170,3 +170,18 @@ export function trocosDeMedicao(pts, fator) {
   }
   return trocos;
 }
+
+/**
+ * Pontos medidos numa planta → troços de tubagem. Cada segmento vai para o eixo mais próximo:
+ * +X do desenho = direita, +Y do desenho = frente. Subidas e descidas juntam-se depois à mão.
+ */
+export function trocosDeTubagem(pts, fator) {
+  const trocos = [];
+  for (let i = 1; i < (pts || []).length; i++) {
+    const dx = pts[i][0] - pts[i - 1][0], dy = pts[i][1] - pts[i - 1][1], comp = Math.round(Math.hypot(dx, dy) * fator);
+    if (!(comp > 0)) continue;
+    const dir = Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 'dir' : 'esq') : (dy >= 0 ? 'frente' : 'tras');
+    trocos.push({ comp, dir, tes: 0 });
+  }
+  return trocos;
+}

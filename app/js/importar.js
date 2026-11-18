@@ -1,6 +1,6 @@
 // Ecrãs de importação: desenho DXF com medição por toque, e articulado (Excel/CSV).
 import * as store from './store.js';
-import { lerDXF, eDWG, textoDeBytes, trocosDeMedicao } from './dxf.js';
+import { lerDXF, eDWG, textoDeBytes, trocosDeMedicao, trocosDeTubagem } from './dxf.js';
 import { lerCSV, lerXLSX, extrairLinhas, classificar, medidasDeLinha } from './articulado.js';
 import { TIPOS } from './calc.js';
 import { esc, dec } from './fmt.js';
@@ -23,7 +23,7 @@ export async function ecraDesenho(obraId, ctx) {
 <div class="barra"><button class="b-lig" id="d-desf">Desfazer ponto</button><button class="b-lig" id="d-limpa">Limpar medição</button><button class="b-lig" id="d-enq">Ver tudo</button></div>
 <section class="bloco"><label class="campo"><span>Unidade do desenho</span><select id="d-un"><option value="1">Milímetros</option><option value="10">Centímetros</option><option value="1000">Metros</option><option value="25.4">Polegadas</option></select></label>
 <div id="d-med" class="medidas"></div>
-<div class="tipos"><button class="b-sec" data-criar="guarda">Criar guarda</button><button class="b-sec" data-criar="corrimao">Criar corrimão</button><button class="b-sec" data-criar="portao">Criar portão</button></div></section>
+<div class="tipos dois"><button class="b-sec" data-criar="guarda">Criar guarda</button><button class="b-sec" data-criar="corrimao">Criar corrimão</button><button class="b-sec" data-criar="portao">Criar portão</button><button class="b-sec" data-criar="tubagem">Criar tubagem</button></div></section>
 <details class="mais bloco"><summary>Camadas</summary><div id="d-cam" class="camadas"></div></details>
 </div>`;
   const cv = $('#d-cv'), g = cv.getContext('2d');
@@ -153,7 +153,7 @@ export async function ecraDesenho(obraId, ctx) {
   ctx.ecra.querySelectorAll('[data-criar]').forEach(b => b.onclick = async () => {
     const tr = trocosDeMedicao(pts, fator); if (!tr.length) return;
     const tipo = b.dataset.criar, total = tr.reduce((s, t) => s + t.comp, 0);
-    const medidas = tipo === 'guarda' ? { trocos: tr } : tipo === 'corrimao' ? { comp: total } : { largura: tr[0].comp };
+    const medidas = tipo === 'guarda' ? { trocos: tr } : tipo === 'corrimao' ? { comp: total } : tipo === 'tubagem' ? { trocos: trocosDeTubagem(pts, fator) } : { largura: tr[0].comp };
     const t = await ctx.novoTrabalho(obra, tipo, { medidas, notas: `Medidas tiradas do desenho ${atual ? atual.nome : ''}.`.trim() });
     ctx.ir(`#/trabalho/${obra.id}/${t.id}`);
   });
@@ -162,7 +162,7 @@ export async function ecraDesenho(obraId, ctx) {
 }
 
 // ====================== ARTICULADO ======================
-const ETQ = { guarda: 'Guarda', corrimao: 'Corrimão', portao: 'Portão', outro: 'Serralharia' };
+const ETQ = { guarda: 'Guarda', corrimao: 'Corrimão', portao: 'Portão', tubagem: 'Tubagem', outro: 'Serralharia' };
 
 export async function ecraArticulado(obraId, ctx) {
   const obra = await store.lerObra(obraId);

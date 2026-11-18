@@ -40,6 +40,8 @@ function descricao(trabalho, res) {
   const e = ench[m.enchimento] ? `, com enchimento em ${ench[m.enchimento]}` : '';
   if (trabalho.tipo === 'guarda') return `Guarda com ${mm(res.comprimentoTotal)} de comprimento e ${mm(res.altura)} de altura${e}.`;
   if (trabalho.tipo === 'corrimao') return `Corrimão com ${mm(res.comprimentoTotal)} de comprimento, ${m.montagem === 'prumos' ? 'sobre prumos' : 'fixo à parede'}.`;
+  if (trabalho.tipo === 'tubagem') { const n = ref => (res.acessorios.find(a => a.ref === ref) || { qtd: 0 }).qtd;
+    return `Tubagem soldada DN${res.dn} (Ø${dec(res.de, 1)} × ${dec(res.esp, 1)} mm) com ${mm(res.comprimentoTotal)}, ${n('curva_inox')} curva(s), ${n('flange_inox')} flange(s) e ${n('te_inox')} tê(s).`; }
   const tp = { batente1: 'de batente com 1 folha', batente2: 'de batente com 2 folhas', correr: 'de correr' }[m.tipo] || '';
   return `Portão ${tp}, ${mm(m.largura)} × ${mm(res.altura)}${e}${m.motor ? ', preparado para motor' : ''}.`;
 }
@@ -48,7 +50,7 @@ function descricao(trabalho, res) {
 async function novoTrabalho(obra, tipo, extra = {}) {
   const precos = await store.lerPrecos();
   const t = { id: store.novoId(), tipo, nome: extra.nome || '', medidas: { ...clone(TIPOS[tipo].def), ...(extra.medidas || {}) },
-    material: 'aco', acabamento: 'pintado', cor: CORES_RAL[1].hex, corNome: CORES_RAL[1].ral, margem: precos.margem,
+    material: tipo === 'tubagem' ? 'inox304' : 'aco', acabamento: tipo === 'tubagem' ? 'nenhum' : 'pintado', cor: CORES_RAL[1].hex, corNome: CORES_RAL[1].ral, margem: precos.margem,
     horasOficina: null, horasMontagem: 4, semDeslocacao: obra.trabalhos.length > 0, notas: extra.notas || '', precos, alterado: Date.now() };
   obra.trabalhos.push(t); obra.alterado = Date.now();
   await store.guardarObra(obra).catch(falhaGravar);
@@ -130,13 +132,13 @@ async function ecraTrabalho(obraId, tid, sep = 'medidas') {
   const guarda = () => { sujo = true; clearTimeout(pend); pend = setTimeout(grava, 350); };
   const seps = { medidas: 'Medidas', desenho: 'Desenho', tres: '3D', custo: 'Custo' };
   ecra.innerHTML = `${topo(t.nome || TIPOS[t.tipo].nome, `#/obra/${obra.id}`)}
-<label class="campo linha-nome"><span>Nome do trabalho</span><input id="nome" value="${esc(t.nome)}" placeholder="ex.: ${{ guarda: 'varanda do 1.º andar', corrimao: 'escada interior', portao: 'entrada principal' }[t.tipo]}"></label>
+<label class="campo linha-nome"><span>Nome do trabalho</span><input id="nome" value="${esc(t.nome)}" placeholder="ex.: ${{ guarda: 'varanda do 1.º andar', corrimao: 'escada interior', portao: 'entrada principal', tubagem: 'linha de água da cozinha' }[t.tipo]}"></label>
 <nav class="seps" role="tablist">${Object.entries(seps).map(([k, n]) => `<button role="tab" data-sep="${k}" aria-selected="${k === sep}">${n}</button>`).join('')}</nav>
 <div id="avisos"></div>
 <section id="p-medidas" class="painel"><form id="form" class="bloco" onsubmit="return false"></form>
 <label class="campo notas"><span>Notas para a oficina</span><textarea id="notas" rows="3">${esc(t.notas)}</textarea></label>
 <button class="b-per" id="apagar-t">Apagar este trabalho</button></section>
-<section id="p-desenho" class="painel"><h3>Alçado</h3><div class="des" id="alcado"></div><h3>Planta</h3><div class="des" id="planta"></div>
+<section id="p-desenho" class="painel"><h3>${t.tipo === 'tubagem' ? 'Isométrico' : 'Alçado'}</h3><div class="des" id="alcado"></div><h3>Planta</h3><div class="des" id="planta"></div>
 <button class="b-pri" id="prep">Folha de preparação</button></section>
 <section id="p-tres" class="painel"><div id="tres" class="tres"></div><button class="b-lig" id="centrar">Centrar vista</button><div class="bloco" id="acab"></div></section>
 <section id="p-custo" class="painel"></section>`;
@@ -234,7 +236,7 @@ ${p.exemplo ? '<p class="faixa">Estes são valores de exemplo. Substitua-os pelo
 <h2>Perfis, por kg</h2><section class="bloco">${Object.entries(MATERIAIS).map(([k, m]) => lin('kg.' + k, m.nome, '€/kg')).join('')}</section>
 <h2>Chapa e vidro</h2><section class="bloco">${lin('m2.vidro', 'Vidro laminado', '€/m²')}${lin('m2.chapa_aco', 'Chapa de aço', '€/m²')}${lin('m2.chapa_inox', 'Chapa de inox', '€/m²')}${lin('m2.chapa_aluminio', 'Chapa de alumínio', '€/m²')}</section>
 <h2>Mão de obra</h2><section class="bloco">${lin('horaOficina', 'Hora de oficina', '€/h')}${lin('horaMontagem', 'Hora de montagem', '€/h')}${lin('deslocacao', 'Deslocação', '€')}</section>
-<h2>Acabamentos</h2><section class="bloco">${lin('acabamento.pintado', 'Pintura', '€/m²')}${lin('acabamento.lacado', 'Lacagem', '€/m²')}${lin('acabamento.galvanizado', 'Galvanização', '€/kg')}${lin('acabamento.escovado', 'Inox escovado', '€/m²')}${lin('acabamento.polido', 'Inox polido', '€/m²')}${lin('acabamento.anodizado', 'Anodização', '€/m²')}</section>
+<h2>Acabamentos</h2><section class="bloco">${lin('acabamento.pintado', 'Pintura', '€/m²')}${lin('acabamento.lacado', 'Lacagem', '€/m²')}${lin('acabamento.galvanizado', 'Galvanização', '€/kg')}${lin('acabamento.escovado', 'Inox escovado', '€/m²')}${lin('acabamento.polido', 'Inox polido', '€/m²')}${lin('acabamento.anodizado', 'Anodização', '€/m²')}${lin('acabamento.decapado', 'Decapagem e passivação', '€/m²')}</section>
 <h2>Acessórios e ferragens</h2><section class="bloco">${Object.entries(ACESSORIOS).map(([k, a]) => lin('acessorios.' + k, a.nome, '€/' + a.un)).join('')}</section>
 <h2>Regras</h2><section class="bloco">${lin('margem', 'Margem por omissão', '%')}${lin('iva', 'IVA', '%')}${lin('vara', 'Comprimento da vara', 'mm')}${lin('serra', 'Espessura do corte', 'mm')}
 <label class="campo"><span>Cobrança do material</span><select data-c="materialModo"><option value="varas" ${p.materialModo === 'varas' ? 'selected' : ''}>Varas inteiras</option><option value="util" ${p.materialModo === 'util' ? 'selected' : ''}>Comprimento usado + desperdício</option></select></label>

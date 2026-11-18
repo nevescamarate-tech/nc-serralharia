@@ -28,7 +28,7 @@ test('classifica as linhas de serralharia', () => {
   eq(classificar('Corrimão em tubo de inox Ø42'), 'corrimao');
   eq(classificar('Portão de correr motorizado'), 'portao');
   eq(classificar('Gradeamento em ferro forjado'), 'outro');
-  eq(classificar('Tubagem em aço inox AISI 316 DN50'), 'outro');
+  eq(classificar('Tubagem em aço inox AISI 316 DN50'), 'tubagem');
   eq(classificar('Betão C25/30 em fundações'), null);
   eq(classificar('Guarda-vento em alvenaria'), null);
   eq(classificar(''), null); eq(classificar(null), null);

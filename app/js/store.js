@@ -94,7 +94,7 @@ function validar(texto) {
     return { erro: 'O ficheiro tem obras ou trabalhos incompletos.' };
   return { d };
 }
-const TIPOS_VALIDOS = ['guarda', 'corrimao', 'portao'];
+const TIPOS_VALIDOS = ['guarda', 'corrimao', 'portao', 'tubagem'];
 const temObjeto = v => !!v && typeof v === 'object' && !Array.isArray(v);
 async function comparar(d) {
   const novas = [], atualizadas = []; let iguais = 0;

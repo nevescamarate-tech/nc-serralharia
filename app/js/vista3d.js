@@ -94,7 +94,12 @@ export function criarVista(container) {
       }
       for (const pt of res.pontos || []) {
         let m;
-        if (pt.tipo === 'sapata') { m = new THREE.Mesh(new THREE.BoxGeometry(110, 8, 110), metal); m.position.set(pt.p[0], pt.p[1] + 4, pt.p[2]); }
+        if (pt.tipo === 'abracadeira') continue;
+        if (pt.tipo === 'curva') { m = new THREE.Mesh(new THREE.SphereGeometry(pt.r * 1.02, 20, 14), metal); m.position.set(...pt.p); }
+        else if (pt.tipo === 'flange' || pt.tipo === 'tampao') {
+          m = new THREE.Mesh(new THREE.CylinderGeometry(pt.tipo === 'flange' ? pt.r * 0.95 : pt.r * 0.52, pt.tipo === 'flange' ? pt.r * 0.95 : pt.r * 0.52, pt.tipo === 'flange' ? 18 : 30, 28), metal);
+          m.quaternion.setFromUnitVectors(CIMA, new THREE.Vector3(...pt.dir)); m.position.set(...pt.p);
+        } else if (pt.tipo === 'sapata') { m = new THREE.Mesh(new THREE.BoxGeometry(110, 8, 110), metal); m.position.set(pt.p[0], pt.p[1] + 4, pt.p[2]); }
         else if (pt.tipo === 'fix_lateral') { m = new THREE.Mesh(new THREE.BoxGeometry(90, 130, 8), metal); m.position.set(pt.p[0], pt.p[1] - 60, pt.p[2]); }
         else { m = new THREE.Mesh(new THREE.CylinderGeometry(7, 7, 70, 12), metal); m.rotation.x = Math.PI / 2; m.position.set(pt.p[0], pt.p[1] - 8, pt.p[2] - 35); }
         grupo.add(m);

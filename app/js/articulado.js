@@ -134,6 +134,7 @@ export function classificar(desc) {
   if (/corrim/.test(t)) return 'corrimao';
   const guarda = t.replace(/guarda[- ]?(vento|fatos?|roupas?|lamas|po|chuva|rodas|sol|fogo)/g, ' ');
   if (/\bguardas?\b|guarda[- ]?corpos|balaustrada/.test(guarda)) return 'guarda';
+  if (/tubagem|tubagens|\bcondutas?\b/.test(t)) return 'tubagem';
   if (/serralh|gradeament|\bgrades?\b|\binox\b|ferro forjado|estrutura metalica|estruturas metalicas|escada metalica|perfis metalicos|chapa (de |em )?(aco|ferro|inox|aluminio)|tubagem em (aco|ferro|inox)|\bconduta|tampa metalica|pala metalica|pergola metalica|vedacao metalica|rede metalica|caixilharia (de |em )?(ferro|aco)/.test(t)) return 'outro';
   return null;
 }
@@ -145,5 +146,6 @@ export function medidasDeLinha(l, tipo) {
   const comp = Math.round(q * 1000);
   if (tipo === 'guarda') return { trocos: [{ comp, desnivel: 0, viragem: 0 }] };
   if (tipo === 'corrimao') return { comp };
+  if (tipo === 'tubagem') return { trocos: [{ comp, dir: 'dir', tes: 0 }] };
   return {};
 }

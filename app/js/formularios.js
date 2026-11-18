@@ -1,5 +1,5 @@
 // Formulários de medidas, definidos por tipo de trabalho.
-import { PERFIS } from './catalogo.js';
+import { PERFIS, DIAMETROS, ESPESSURAS } from './catalogo.js';
 import { esc } from './fmt.js';
 
 const N = (id, rotulo, o = {}) => ({ id, rotulo, tipo: 'num', un: 'mm', ...o });
@@ -51,6 +51,16 @@ export const CAMPOS = {
   ],
 };
 
+const PONTA = { livre: 'Livre (sem acessório)', flange: 'Flange', tampao: 'Tampão' };
+CAMPOS.tubagem = [
+  S('dn', 'Diâmetro nominal', Object.fromEntries(Object.entries(DIAMETROS).map(([dn, d]) => [dn, `DN${dn} (Ø${String(d.de).replace('.', ',')} mm)`]))),
+  S('esp', 'Espessura da parede', Object.fromEntries(ESPESSURAS.map(e => [e, String(e).replace('.', ',') + ' mm']))),
+  { id: 'trocos', tipo: 'trocos' },
+  S('ini', 'Ponta inicial', PONTA),
+  S('fim', 'Ponta final', PONTA),
+  N('maxSuportes', 'Afastamento máximo entre abraçadeiras', { av: true }),
+];
+
 function campoNum(id, rotulo, valor, un, extra = '') {
   return `<label class="campo"><span>${esc(rotulo)}</span><span class="entrada"><input type="text" inputmode="decimal" autocomplete="off" data-id="${id}" value="${esc(valor ?? '')}" ${extra}>${un ? `<i>${un}</i>` : ''}</span></label>`;
 }
@@ -60,11 +70,22 @@ function campoHTML(c, m) {
   if (c.tipo === 'num') return campoNum(c.id, c.rotulo, v, c.un);
   if (c.tipo === 'bool') return `<label class="campo marca"><input type="checkbox" data-id="${c.id}" ${v ? 'checked' : ''}><span>${esc(c.rotulo)}</span></label>`;
   let ops = '';
-  if (c.tipo === 'sel') ops = Object.entries(c.opcoes).map(([k, n]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${esc(n)}</option>`).join('');
+  if (c.tipo === 'sel') ops = Object.entries(c.opcoes).map(([k, n]) => `<option value="${k}" ${String(k) === String(v) ? 'selected' : ''}>${esc(n)}</option>`).join('');
   else ops = Object.values(PERFIS).filter(p => c.formas.includes(p.forma)).map(p => `<option value="${p.id}" ${p.id === v ? 'selected' : ''}>${esc(p.nome)}</option>`).join('');
   return `<label class="campo"><span>${esc(c.rotulo)}</span><select data-id="${c.id}">${ops}</select></label>`;
 }
-function trocosHTML(m) {
+const DIRS_TUBO = { dir: 'Para a direita', esq: 'Para a esquerda', cima: 'Para cima', baixo: 'Para baixo', frente: 'Para a frente (afasta-se)', tras: 'Para trás (aproxima-se)' };
+function trocosTuboHTML(m) {
+  const lista = Array.isArray(m.trocos) && m.trocos.length ? m.trocos : [{ comp: '', dir: 'dir', tes: 0 }];
+  return `<fieldset class="trocos"><legend>Percurso da tubagem (medidas eixo a eixo, de canto a canto)</legend>${lista.map((t, i) => `<div class="troco" data-i="${i}">
+<div class="troco-cab"><strong>Troço ${i + 1}</strong>${lista.length > 1 ? `<button type="button" class="b-lig" data-tirar="${i}" aria-label="Remover troço ${i + 1}">Remover</button>` : ''}</div>
+${campoNum('', 'Comprimento', t.comp, 'mm', `data-troco="${i}" data-k="comp"`)}
+<label class="campo"><span>Direção</span><select data-troco="${i}" data-k="dir">${Object.entries(DIRS_TUBO).map(([k, n]) => `<option value="${k}" ${k === (t.dir || 'dir') ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+${campoNum('', 'Tês (derivações) neste troço', t.tes || '', 'un', `data-troco="${i}" data-k="tes"`)}
+</div>`).join('')}<button type="button" class="b-sec" data-juntar>+ Juntar troço</button></fieldset>`;
+}
+function trocosHTML(m, tipo) {
+  if (tipo === 'tubagem') return trocosTuboHTML(m);
   const lista = Array.isArray(m.trocos) && m.trocos.length ? m.trocos : [{ comp: '' }];
   return `<fieldset class="trocos"><legend>Troços da guarda</legend>${lista.map((t, i) => `<div class="troco" data-i="${i}">
 <div class="troco-cab"><strong>Troço ${i + 1}</strong>${lista.length > 1 ? `<button type="button" class="b-lig" data-tirar="${i}" aria-label="Remover troço ${i + 1}">Remover</button>` : ''}</div>
@@ -78,7 +99,7 @@ ${i > 0 ? campoNum('', 'Viragem no canto (+ direita, − esquerda)', t.viragem |
 export function desenharFormulario(el, tipo, medidas, onChange) {
   const campos = CAMPOS[tipo] || [];
   function pinta() {
-    const base = campos.filter(c => !c.av).map(c => c.tipo === 'trocos' ? trocosHTML(medidas) : campoHTML(c, medidas)).join('');
+    const base = campos.filter(c => !c.av).map(c => c.tipo === 'trocos' ? trocosHTML(medidas, tipo) : campoHTML(c, medidas)).join('');
     const av = campos.filter(c => c.av).map(c => campoHTML(c, medidas)).join('');
     const aberto = el.querySelector('details') && el.querySelector('details').open;
     el.innerHTML = `${base}<details class="mais" ${aberto ? 'open' : ''}><summary>Perfis e regras</summary>${av}</details>`;
@@ -95,6 +116,7 @@ export function desenharFormulario(el, tipo, medidas, onChange) {
   };
   el.onchange = e => {
     const t = e.target;
+    if (t.dataset.troco !== undefined && t.tagName === 'SELECT') { medidas.trocos[+t.dataset.troco][t.dataset.k] = t.value; onChange(medidas); return; }
     if (!t.dataset.id) return;
     if (t.type === 'checkbox') medidas[t.dataset.id] = t.checked;
     else if (t.tagName === 'SELECT') medidas[t.dataset.id] = t.value;
@@ -103,7 +125,7 @@ export function desenharFormulario(el, tipo, medidas, onChange) {
   };
   el.onclick = e => {
     const t = e.target.closest('button'); if (!t) return;
-    if (t.dataset.juntar !== undefined) medidas.trocos = [...(medidas.trocos || [{ comp: '' }]), { comp: '', desnivel: 0, viragem: 90 }];
+    if (t.dataset.juntar !== undefined) medidas.trocos = [...(medidas.trocos || [{ comp: '' }]), tipo === 'tubagem' ? { comp: '', dir: 'cima', tes: 0 } : { comp: '', desnivel: 0, viragem: 90 }];
     else if (t.dataset.tirar !== undefined) medidas.trocos.splice(+t.dataset.tirar, 1);
     else return;
     pinta(); onChange(medidas);

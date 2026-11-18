@@ -1,7 +1,7 @@
 // Folhas para imprimir: preparação (oficina) e proposta (cliente).
 import { esc, dec, eur, dataPT, logoSVG } from './fmt.js';
 import { PERFIS, MATERIAIS, ACESSORIOS, acabamentoDe } from './catalogo.js';
-import { listaMaterial } from './custo.js';
+import { listaMaterial, nomeAcessorio } from './custo.js';
 import { alcadoSVG, plantaSVG } from './desenho2d.js';
 import { TIPOS } from './calc.js';
 
@@ -35,12 +35,12 @@ export function folhaPreparacao(obra, trabalho, res, plano, imagem3d, empresa) {
       return `<tr><td></td><td class="n">${q}</td><td class="n">${dec(+L, 1)}</td><td class="n">${dec(+a1, 1)}° / ${dec(+a2, 1)}°</td></tr>`; }).join('');
     return `<tr class="grupo"><td>${esc((PERFIS[g.perfil] || {}).nome || g.perfil)}</td><td colspan="3">${g.nVaras} vara(s) · sobra ${dec(g.desperdicio / 1000)} m</td></tr>${linhas}`;
   }).join('');
-  const ac = res.acessorios.map(a => `<tr><td>${esc((ACESSORIOS[a.ref] || {}).nome || a.ref)}</td><td class="n">${dec(a.qtd, a.qtd % 1 ? 2 : 0)} ${(ACESSORIOS[a.ref] || {}).un || 'un'}</td></tr>`).join('');
+  const ac = res.acessorios.map(a => `<tr><td>${esc(nomeAcessorio(a))}</td><td class="n">${dec(a.qtd, a.qtd % 1 ? 2 : 0)} ${(ACESSORIOS[a.ref] || {}).un || 'un'}</td></tr>`).join('');
   const avisos = [...res.avisos, ...plano.avisos].map(a => `<li>${esc(a)}</li>`).join('');
   return `<article class="folha">${cabecalho('Folha de preparação', obra, empresa)}
 <h2>${esc(trabalho.nome || tipo)} <small>${esc(tipo)} · ${esc(descricaoMaterial(trabalho))}</small></h2>
 ${avisos ? `<ul class="f-avisos">${avisos}</ul>` : ''}
-<h3>Alçado</h3><div class="f-des">${alcadoSVG(res)}</div>
+<h3>${res.dn ? 'Isométrico' : 'Alçado'}</h3><div class="f-des">${alcadoSVG(res)}</div>
 <h3>Planta</h3><div class="f-des f-planta">${plantaSVG(res)}</div>
 ${imagem3d ? `<h3>Pormenor 3D</h3><img class="f-3d" src="${imagem3d}" alt="Pormenor 3D">` : ''}
 <h3>Lista de material</h3><table class="f-tab"><tr><th>Material</th><th class="n">Qtd.</th><th class="n">Total</th><th class="n">kg</th></tr>${mat}</table>
