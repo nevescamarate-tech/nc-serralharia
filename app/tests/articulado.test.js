@@ -1,5 +1,5 @@
 import { test, eq, ok } from './t.js';
-import { lerCSV, lerXLSX, extrairLinhas, classificar, medidasDeLinha } from '../js/articulado.js';
+import { lerCSV, lerXLSX, extrairLinhas, extrairDeFolhas, classificar, medidasDeLinha } from '../js/articulado.js';
 
 test('lê CSV com ponto e vírgula, aspas e vírgula decimal', () => {
   const r = lerCSV('Art;Designação;Un;Quant\n1.1;"Guarda; em aço";m;12,5\n');
@@ -52,4 +52,28 @@ test('lê um ficheiro Excel verdadeiro (.xlsx)', async () => {
 test('ficheiro que não é Excel: devolve erro, sem exceção', async () => {
   ok((await lerXLSX(new TextEncoder().encode('isto não é um zip').buffer)).erro);
   ok((await lerXLSX(new ArrayBuffer(0))).erro);
+});
+
+// --- ficheiro gravado pelo Excel verdadeiro: duas folhas, título em células unidas, fórmulas ---
+test('lê um mapa de quantidades gravado pelo Excel e classifica as linhas', async () => {
+  const r = await lerXLSX(await (await fetch('./fixtures/mqt-excel.xlsx')).arrayBuffer());
+  eq(r.erro, undefined); eq(r.folhas.length, 2);
+  const linhas = extrairDeFolhas(r.folhas);
+  const por = art => linhas.find(l => l.art === art);
+  eq(linhas.filter(l => /^\d/.test(l.art)).length, 10);
+  eq([por('4.1').un, por('4.1').qtd], ['m', 36.75]);
+  eq(classificar(por('4.1').desc), 'guarda'); eq(classificar(por('4.2').desc), 'corrimao');
+  eq(classificar(por('4.3').desc), 'portao'); eq(classificar(por('4.4').desc), 'outro');
+  eq(classificar(por('7.1').desc), 'tubagem'); eq(classificar(por('7.2').desc), null); eq(classificar(por('1.1').desc), null);
+  eq(por('7.1').qtd, 124); eq(por('4').qtd, null);
+  ok(!linhas.some(l => /Dono de obra|MAPA DE QUANTIDADES/.test(l.desc)), 'linhas de capa ou título entraram no articulado');
+});
+test('quando nenhuma folha tem cabeçalho, adivinha as colunas', () => {
+  eq(extrairDeFolhas([{ nome: 'F', linhas: [['1', 'Portão de correr em ferro', 'un', '2'], ['2', 'Corrimão em inox', 'm', '8']] }]).length, 2);
+  eq(extrairDeFolhas(null), []);
+});
+test('classificação pelo que aparece primeiro na descrição', () => {
+  eq(classificar('Corrimão de apoio junto à guarda existente'), 'corrimao');
+  eq(classificar('Portão com guarda lateral'), 'portao');
+  eq(classificar('Guarda-vento em vidro com corrimão'), 'corrimao');
 });

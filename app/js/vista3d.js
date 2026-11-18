@@ -89,7 +89,11 @@ export function criarVista(container) {
         m.position.set(p.o[0] + p.u[0] * p.w / 2, p.o[1] + p.h / 2 + (p.dy || 0) / 2, p.o[2] + p.u[2] * p.w / 2);
         m.rotation.order = 'YXZ';
         m.rotation.y = -Math.atan2(p.u[2], p.u[0]);
-        if (p.dy) m.rotation.z = Math.atan2(p.dy, p.w);
+        if (p.dy) {   // troço inclinado: os lados do painel ficam a prumo (paralelogramo), não rodados
+          const pos = m.geometry.attributes.position;
+          for (let k = 0; k < pos.count; k++) pos.setY(k, pos.getY(k) + pos.getX(k) * p.dy / p.w);
+          pos.needsUpdate = true; m.geometry.computeVertexNormals();
+        }
         grupo.add(m);
       }
       for (const pt of res.pontos || []) {

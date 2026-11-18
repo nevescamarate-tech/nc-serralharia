@@ -91,7 +91,7 @@ function numero(v) {
   const x = Number(s); return Number.isFinite(x) ? x : null;
 }
 /** Linhas de uma folha → [{ art, desc, un, qtd }]. Procura o cabeçalho; se não houver, adivinha as colunas. */
-export function extrairLinhas(linhas) {
+export function extrairLinhas(linhas, { exigirCabecalho = false } = {}) {
   const rows = (Array.isArray(linhas) ? linhas : []).map(r => (Array.isArray(r) ? r : []).map(c => (typeof c === 'number' ? c : String(c ?? '').trim())));
   let cab = -1, col = {};
   for (let i = 0; i < Math.min(rows.length, 40) && cab < 0; i++) {
@@ -102,6 +102,7 @@ export function extrairLinhas(linhas) {
     cab = i; col = { desc: d, qtd: q, un: u, art: c.findIndex((x, k) => k !== d && /^(art|item|n\.?[ºo°]?$|cod|ref|cap)/.test(x)) };
   }
   let corpo = rows.slice(cab + 1);
+  if (cab < 0 && exigirCabecalho) return [];
   if (cab < 0) {
     corpo = rows.filter(r => r.some(c => c !== ''));
     if (!corpo.length) return [];
@@ -130,10 +131,12 @@ export function extrairLinhas(linhas) {
 export function classificar(desc) {
   const t = semAcentos(desc);
   if (!t.trim()) return null;
-  if (/\bportao\b|\bportoes\b/.test(t)) return 'portao';
-  if (/corrim/.test(t)) return 'corrimao';
-  const guarda = t.replace(/guarda[- ]?(vento|fatos?|roupas?|lamas|po|chuva|rodas|sol|fogo)/g, ' ');
-  if (/\bguardas?\b|guarda[- ]?corpos|balaustrada/.test(guarda)) return 'guarda';
+  // Guarda, corrimão e portão: ganha o que aparece primeiro no texto («guarda ... incluindo corrimão» é uma guarda).
+  const limpo = t.replace(/guarda[- ]?(vento|fatos?|roupas?|lamas|po|chuva|rodas|sol|fogo)/g, m => ' '.repeat(m.length));
+  const onde = re => { const m = limpo.match(re); return m ? m.index : Infinity; };
+  const pos = { portao: onde(/\bportao\b|\bportoes\b/), corrimao: onde(/corrim/), guarda: onde(/\bguardas?\b|guarda[- ]?corpos|balaustrada/) };
+  const primeiro = Object.keys(pos).sort((a, b) => pos[a] - pos[b])[0];
+  if (pos[primeiro] !== Infinity) return primeiro;
   if (/tubagem|tubagens|\bcondutas?\b/.test(t)) return 'tubagem';
   if (/serralh|gradeament|\bgrades?\b|\binox\b|ferro forjado|estrutura metalica|estruturas metalicas|escada metalica|perfis metalicos|chapa (de |em )?(aco|ferro|inox|aluminio)|tubagem em (aco|ferro|inox)|\bconduta|tampa metalica|pala metalica|pergola metalica|vedacao metalica|rede metalica|caixilharia (de |em )?(ferro|aco)/.test(t)) return 'outro';
   return null;
@@ -148,4 +151,14 @@ export function medidasDeLinha(l, tipo) {
   if (tipo === 'corrimao') return { comp };
   if (tipo === 'tubagem') return { trocos: [{ comp, dir: 'dir', tes: 0 }] };
   return {};
+}
+
+/**
+ * Linhas de todas as folhas de um Excel. Se alguma folha tiver cabeçalho de articulado, só essas contam
+ * (capas e folhas de notas ficam de fora); se nenhuma tiver, tenta adivinhar as colunas em todas.
+ */
+export function extrairDeFolhas(folhas) {
+  const lista = Array.isArray(folhas) ? folhas : [];
+  const comCab = lista.flatMap(f => extrairLinhas(f.linhas, { exigirCabecalho: true }));
+  return comCab.length ? comCab : lista.flatMap(f => extrairLinhas(f.linhas));
 }

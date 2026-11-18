@@ -1,7 +1,7 @@
 // Ecrãs de importação: desenho DXF com medição por toque, e articulado (Excel/CSV).
 import * as store from './store.js';
 import { lerDXF, eDWG, textoDeBytes, trocosDeMedicao, trocosDeTubagem } from './dxf.js';
-import { lerCSV, lerXLSX, extrairLinhas, classificar, medidasDeLinha } from './articulado.js';
+import { lerCSV, lerXLSX, extrairLinhas, extrairDeFolhas, classificar, medidasDeLinha } from './articulado.js';
 import { TIPOS } from './calc.js';
 import { esc, dec } from './fmt.js';
 
@@ -205,7 +205,7 @@ export async function ecraArticulado(obraId, ctx) {
     if (/\.xlsx$/i.test(f.name)) {
       const r = await lerXLSX(await f.arrayBuffer());
       if (r.erro) return erro(r.erro);
-      for (const folha of r.folhas) linhas.push(...extrairLinhas(folha.linhas));
+      linhas = extrairDeFolhas(r.folhas);
     } else linhas = extrairLinhas(lerCSV(textoDeBytes(new Uint8Array(await f.arrayBuffer()))));
     if (!linhas.length) return erro('Não encontrei linhas de articulado neste ficheiro. Precisa de colunas de descrição, unidade e quantidade.');
     dados = { nome: f.name, linhas }; soSerr = true; limite = 200; await guarda(); pinta();
