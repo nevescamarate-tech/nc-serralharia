@@ -9,7 +9,7 @@ import { folhaPreparacao, folhaProposta, descricaoMaterial } from './folhas.js';
 import { PERFIS, MATERIAIS, CORES_RAL, ACESSORIOS, acabamentoDe } from './catalogo.js';
 import { esc, dec, eur, dataPT, logoSVG } from './fmt.js';
 import { num } from './modelos/util.js';
-import { temPin, definirPin, verificarPin, removerPin } from './pin.js';
+import { temPin, definirPin, verificarPin, removerPin, adicionarPin, listarPins, quemE, mudarPin, MAX_PINS } from './pin.js';
 import { guardarFoto, lerFoto, apagarFotos, copiarFotos, MAX_FOTOS } from './fotos.js';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -292,23 +292,44 @@ async function ecraDefinicoes() {
 <h2>Cópia de segurança</h2><section class="bloco"><p>As obras ficam guardadas só neste aparelho. Guarde uma cópia com regularidade; o mesmo ficheiro serve para passar as obras para outro aparelho.</p>
 <button class="b-pri" id="exp">Guardar cópia num ficheiro</button>
 <label class="b-sec ficheiro">Carregar cópia de um ficheiro<input type="file" id="imp" accept=".json,application/json"></label></section>`;
-  const comPin = await temPin();
+  // Bloqueio com PIN: um por pessoa, todos com o mesmo acesso.
+  const pessoas = await listarPins(), comPin = pessoas.length > 0;
+  const campoPin = (id, rot) => `<label class="campo"><span>${rot}</span><input id="${id}" type="password" inputmode="numeric" maxlength="8" autocomplete="off"></label>`;
   ecra.insertAdjacentHTML('beforeend', `<h2>Bloqueio com PIN</h2><section class="bloco" id="s-pin">
-<p>${comPin ? 'A app pede o PIN ao abrir e depois de 5 minutos em segundo plano.' : 'Sem PIN, qualquer pessoa com este aparelho na mão abre a app.'} O PIN protege de quem pega no aparelho; não substitui o bloqueio do próprio telemóvel. Se o esquecer, não há forma de o recuperar: guarde antes uma cópia de segurança.</p>
-${comPin ? '<label class="campo"><span>PIN atual</span><input id="pin-atual" type="password" inputmode="numeric" maxlength="8" autocomplete="off"></label>' : ''}
-<label class="campo"><span>${comPin ? 'PIN novo' : 'PIN (4 a 8 algarismos)'}</span><input id="pin-novo" type="password" inputmode="numeric" maxlength="8" autocomplete="off"></label>
-<label class="campo"><span>Repetir o PIN</span><input id="pin-rep" type="password" inputmode="numeric" maxlength="8" autocomplete="off"></label>
-<button class="b-sec" id="pin-guardar">${comPin ? 'Mudar o PIN' : 'Ativar o PIN'}</button>
-${comPin ? '<button class="b-per" id="pin-tirar">Desativar o PIN</button>' : ''}</section>`);
-  const atualCerto = async () => !comPin || await verificarPin($('#pin-atual').value) || (aviso('O PIN atual está errado.'), false);
-  $('#pin-guardar').onclick = async () => {
-    if (!(await atualCerto())) return;
-    if ($('#pin-novo').value !== $('#pin-rep').value) return aviso('Os dois PIN não são iguais.');
-    const r = await definirPin($('#pin-novo').value);
+<p>${comPin ? 'A app pede o PIN ao abrir e depois de 5 minutos em segundo plano. Cada pessoa tem o seu PIN e todas veem o mesmo.' : 'Sem PIN, qualquer pessoa com este aparelho na mão abre a app.'} O PIN protege de quem pega no aparelho; não substitui o bloqueio do próprio telemóvel. Se todos esquecerem o PIN, não há forma de o recuperar: guarde antes uma cópia de segurança.</p>
+${comPin ? `<table class="tab">${pessoas.map((p, i) => `<tr><td>${esc(p.nome)}</td><td class="n"><button type="button" class="b-lig" data-mudar="${i}">Mudar PIN</button><button type="button" class="b-lig" data-remover="${i}">Remover</button></td></tr>`).join('')}</table>
+${campoPin('pin-atual', 'Para alterar, escreva primeiro um PIN atual (o seu ou o de outra pessoa)')}` : ''}
+<div id="pin-form" class="pin-form">${pessoas.length < MAX_PINS ? `<h3>${comPin ? 'Juntar outra pessoa' : 'Criar o primeiro PIN'}</h3>
+<label class="campo"><span>Nome da pessoa</span><input id="pin-nome" maxlength="30" autocomplete="off"></label>
+${campoPin('pin-novo', 'PIN (4 a 8 algarismos)')}${campoPin('pin-rep', 'Repetir o PIN')}
+<button class="b-sec" id="pin-guardar">${comPin ? 'Juntar PIN' : 'Ativar o PIN'}</button>` : `<p>Já existem ${MAX_PINS} PIN, que é o máximo.</p>`}</div></section>`);
+  const autorizado = async () => !comPin || await verificarPin($('#pin-atual').value) || (aviso('Escreva primeiro um PIN atual válido.'), false);
+  const iguais = () => $('#pin-novo').value === $('#pin-rep').value || (aviso('Os dois PIN não são iguais.'), false);
+  const bg = $('#pin-guardar');
+  if (bg) bg.onclick = async () => {
+    if (!(await autorizado()) || !iguais()) return;
+    const r = await adicionarPin($('#pin-nome').value, $('#pin-novo').value);
     if (!r.ok) return aviso(r.erro);
-    aviso('PIN ativado.'); ecraDefinicoes();
+    await store.kv.guardar('pinPerguntado', true); aviso('PIN criado.'); ecraDefinicoes();
   };
-  if (comPin) $('#pin-tirar').onclick = async () => { if (!(await atualCerto())) return; await removerPin(); aviso('PIN desativado.'); ecraDefinicoes(); };
+  $('#s-pin').onclick = async e => {
+    const b = e.target.closest('[data-mudar],[data-remover]'); if (!b) return;
+    if (!(await autorizado())) return;
+    if (b.dataset.remover !== undefined) {
+      const i = +b.dataset.remover;
+      if (!confirm(pessoas.length === 1 ? 'Remover o único PIN? A app deixa de pedir código ao abrir.' : `Remover o PIN de ${pessoas[i].nome}?`)) return;
+      await removerPin(i); aviso('PIN removido.'); return ecraDefinicoes();
+    }
+    const i = +b.dataset.mudar;
+    $('#pin-form').innerHTML = `<h3>PIN novo de ${esc(pessoas[i].nome)}</h3>${campoPin('pin-novo', 'PIN novo (4 a 8 algarismos)')}${campoPin('pin-rep', 'Repetir o PIN')}<button class="b-sec" id="pin-mudar">Guardar o PIN novo</button>`;
+    $('#pin-novo').focus();
+    $('#pin-mudar').onclick = async () => {
+      if (!(await autorizado()) || !iguais()) return;
+      const r = await mudarPin(i, $('#pin-novo').value);
+      if (!r.ok) return aviso(r.erro);
+      aviso('PIN alterado.'); ecraDefinicoes();
+    };
+  };
   $('#emp').oninput = ev => { const k = ev.target.dataset.k; if (k) { e[k] = ev.target.value; store.guardarEmpresa(e); } };
   $('#exp').onclick = async () => {
     const a = document.createElement('a');
@@ -362,7 +383,8 @@ function trancar() {
       e.preventDefault();
       const falta = Math.ceil((esperaAte - Date.now()) / 1000);
       if (falta > 0) { msg.textContent = `Demasiadas tentativas. Aguarde ${falta} segundos.`; msg.hidden = false; return; }
-      if (await verificarPin(campo.value)) { falhas = 0; f.hidden = true; document.body.classList.remove('trancado'); feito(); return; }
+      const quem = await quemE(campo.value);
+      if (quem !== null) { aviso('Olá, ' + quem + '.'); falhas = 0; f.hidden = true; document.body.classList.remove('trancado'); feito(); return; }
       campo.value = ''; falhas++;
       if (falhas >= 5) { esperaAte = Date.now() + 30000; falhas = 0; msg.textContent = 'PIN errado. Aguarde 30 segundos antes de tentar outra vez.'; }
       else msg.textContent = 'PIN errado.';
@@ -382,6 +404,7 @@ async function convidarPin() {
     ecra.innerHTML = `<form class="convite" autocomplete="off"><div class="capa">${logoSVG({ altura: 120 })}</div>
 <h2>Proteger a app com PIN</h2>
 <p>Com PIN, a app pede o código ao abrir e depois de 5 minutos parada. Protege as obras e os preços de quem pegar neste aparelho. Se o esquecer não há forma de o recuperar.</p>
+<label class="campo"><span>O seu nome</span><input id="cv-nome" maxlength="30" autocomplete="off"></label>
 <label class="campo"><span>PIN (4 a 8 algarismos)</span><input id="cv-pin" type="password" inputmode="numeric" maxlength="8" autocomplete="off"></label>
 <label class="campo"><span>Repetir o PIN</span><input id="cv-rep" type="password" inputmode="numeric" maxlength="8" autocomplete="off"></label>
 <p id="cv-msg" class="alerta" hidden></p>
@@ -392,7 +415,7 @@ async function convidarPin() {
     $('.convite').onsubmit = async e => {
       e.preventDefault();
       if ($('#cv-pin').value !== $('#cv-rep').value) return erro('Os dois PIN não são iguais.');
-      const r = await definirPin($('#cv-pin').value);
+      const r = await definirPin($('#cv-pin').value, $('#cv-nome').value.trim() || 'Utilizador 1');
       if (!r.ok) return erro(r.erro);
       aviso('PIN ativado.'); fim();
     };
