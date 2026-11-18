@@ -1,70 +1,54 @@
 import { test, eq, ok } from './t.js';
 import * as store from '../js/store.js';
-import { temPin, definirPin, verificarPin, removerPin, adicionarPin, listarPins, quemE, mudarPin, MAX_PINS } from '../js/pin.js';
+import { resumoPin, quemE, verificarPin, temPin, esperaSegundos, registarFalha, limparFalhas } from '../js/pin.js';
+import { SAL, VOLTAS, ACESSOS } from '../js/acesso.js';
 
-async function limpo() { await store.abrir('nc-teste'); await store.kv.guardar('pins', null); await store.kv.guardar('pin', null); }
+const SAL_T = '00112233445566778899aabbccddeeff', V = 1000;   // lista de teste, rápida
+const lista = async () => [{ nome: 'A', h: await resumoPin('11112222', SAL_T, V) }, { nome: 'B', h: await resumoPin('33334444', SAL_T, V) }];
+const limpo = async () => { await store.abrir('nc-teste'); await limparFalhas(); };
 
-test('sem PIN definido: não há bloqueio e qualquer verificação falha', async () => {
-  await limpo(); eq(await temPin(), false); eq(await verificarPin('1234'), false); eq(await listarPins(), []);
+test('o resumo calculado no browser é igual ao do gerador de PIN (vetor de teste)', async () => {
+  eq(SAL, 'c9757ed6cc22b39cf25c5b9fb79ebdc8'); eq(VOLTAS, 600000);
+  eq(await resumoPin('00000000'), '3b0f54cc561af329968b8d4dc4052b0cbad1dd99685b9ef7001861b1e8183813');
 });
-test('definir e verificar o PIN', async () => {
-  await limpo(); eq((await definirPin('1234')).ok, true);
-  eq(await temPin(), true); eq(await verificarPin('1234'), true); eq(await verificarPin('1235'), false); eq(await verificarPin(''), false);
+test('a app tem dois PIN de acesso, guardados só como resumos diferentes', () => {
+  eq(ACESSOS.length, 2); ok(temPin());
+  for (const a of ACESSOS) ok(/^[0-9a-f]{64}$/.test(a.h), 'resumo mal formado');
+  ok(ACESSOS[0].h !== ACESSOS[1].h);
+  ok(!/\d{4}/.test(ACESSOS.map(a => a.nome).join(' ')), 'PIN em claro no código');
 });
-test('o PIN não fica guardado em claro', async () => {
-  await limpo(); await definirPin('482615');
-  ok(!JSON.stringify(await store.kv.ler('pins')).includes('482615'));
-  ok(!(await store.exportar()).includes('482615'));
+test('cada PIN da lista entra e diz a quem pertence; os outros não entram', async () => {
+  const l = await lista();
+  eq(await quemE('11112222', l, SAL_T, V), 'A'); eq(await quemE('33334444', l, SAL_T, V), 'B');
+  eq(await quemE('11112223', l, SAL_T, V), null); eq(await verificarPin('33334444', l, SAL_T, V), true);
 });
-test('PIN tem de ter 4 a 8 algarismos', async () => {
-  await limpo();
-  for (const p of ['', '12', '123', 'abcd', '123456789', '12 34', null]) eq((await definirPin(p)).ok, false, String(p));
-  eq(await temPin(), false);
+test('só aceita 4 a 12 algarismos', async () => {
+  const l = await lista();
+  for (const p of ['', '123', 'abcd1234', '1111 2222', '1234567890123', null, undefined, 11112222]) eq(await quemE(p, l, SAL_T, V), null);
 });
-test('remover todos os PIN', async () => {
-  await limpo(); await definirPin('1234'); await removerPin(); eq(await temPin(), false);
+test('PIN óbvios não abrem a app verdadeira', async () => {
+  for (const p of ['0000', '1234', '00000000', '12345678']) eq(await quemE(p), null);
 });
-test('o mesmo PIN definido duas vezes dá registos diferentes (sal aleatório)', async () => {
-  await limpo(); await definirPin('1234'); const a = JSON.stringify(await store.kv.ler('pins'));
-  await definirPin('1234'); ok(a !== JSON.stringify(await store.kv.ler('pins')));
+test('lista vazia ou mal formada nunca dá acesso', async () => {
+  eq(await quemE('11112222', [], SAL_T, V), null); eq(await quemE('11112222', [null, {}, { nome: 'x', h: 5 }], SAL_T, V), null);
 });
-
-// --- dois PIN, um por pessoa ---
-test('duas pessoas, cada uma com o seu PIN, ambas entram', async () => {
-  await limpo();
-  eq((await adicionarPin('Nuno', '1111')).ok, true); eq((await adicionarPin('Neves', '2222')).ok, true);
-  eq((await listarPins()).map(p => p.nome), ['Nuno', 'Neves']);
-  eq(await verificarPin('1111'), true); eq(await verificarPin('2222'), true); eq(await verificarPin('3333'), false);
-  eq(await quemE('2222'), 'Neves'); eq(await quemE('1111'), 'Nuno'); eq(await quemE('9999'), null);
+test('quatro falhas não bloqueiam; a quinta obriga a esperar 30 segundos', async () => {
+  await limpo(); const t0 = 1e12;
+  for (let i = 0; i < 4; i++) eq(await registarFalha(t0), 0);
+  eq(await esperaSegundos(t0), 0);
+  eq(await registarFalha(t0), 30); eq(await esperaSegundos(t0), 30); eq(await esperaSegundos(t0 + 31000), 0);
+  await limparFalhas();
 });
-test('não aceita dois PIN iguais nem nome vazio', async () => {
-  await limpo(); await adicionarPin('Nuno', '1111');
-  eq((await adicionarPin('Neves', '1111')).ok, false);
-  eq((await adicionarPin('  ', '2222')).ok, false);
-  eq((await listarPins()).length, 1);
+test('a espera duplica a cada 5 falhas e não passa de 1 hora', async () => {
+  await limpo(); const t0 = 1e12; const esperas = [];
+  for (let i = 1; i <= 50; i++) { const e = await registarFalha(t0); if (e) esperas.push(e); }
+  eq(esperas.slice(0, 4), [30, 60, 120, 240]); eq(esperas[esperas.length - 1], 3600);
+  await limparFalhas();
 });
-test('há um número máximo de PIN', async () => {
-  await limpo();
-  for (let i = 0; i < MAX_PINS; i++) eq((await adicionarPin('P' + i, String(1000 + i))).ok, true);
-  eq((await adicionarPin('A mais', '9999')).ok, false); eq((await listarPins()).length, MAX_PINS);
-});
-test('mudar o PIN de uma pessoa não mexe no da outra', async () => {
-  await limpo(); await adicionarPin('Nuno', '1111'); await adicionarPin('Neves', '2222');
-  eq((await mudarPin(0, '5555')).ok, true);
-  eq(await verificarPin('1111'), false); eq(await quemE('5555'), 'Nuno'); eq(await quemE('2222'), 'Neves');
-  eq((await mudarPin(0, '2222')).ok, false, 'não pode ficar igual ao da outra pessoa');
-  eq((await mudarPin(7, '4444')).ok, false);
-});
-test('remover o PIN de uma pessoa mantém o da outra', async () => {
-  await limpo(); await adicionarPin('Nuno', '1111'); await adicionarPin('Neves', '2222');
-  await removerPin(0);
-  eq((await listarPins()).map(p => p.nome), ['Neves']); eq(await verificarPin('1111'), false); eq(await verificarPin('2222'), true);
-});
-test('PIN criado numa versão anterior da app continua a funcionar', async () => {
-  await limpo(); await definirPin('1234');
-  const [antigo] = await store.kv.ler('pins');
-  await store.kv.guardar('pins', null); await store.kv.guardar('pin', { s: antigo.s, h: antigo.h });   // formato antigo
-  eq(await temPin(), true); eq(await verificarPin('1234'), true); eq((await listarPins()).length, 1);
-  eq((await adicionarPin('Neves', '2222')).ok, true); eq(await verificarPin('1234'), true);
-  await limpo();
+test('as falhas ficam guardadas (recarregar não as apaga) e entrar com sucesso limpa-as', async () => {
+  await limpo(); const t0 = Date.now();
+  for (let i = 0; i < 5; i++) await registarFalha(t0);
+  await store.abrir('nc-teste'); ok(await esperaSegundos(t0) > 0);
+  await limparFalhas(); eq(await esperaSegundos(t0), 0); eq(await registarFalha(t0), 0);
+  await limparFalhas();
 });

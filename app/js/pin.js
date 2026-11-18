@@ -1,75 +1,46 @@
-// Bloqueio da app com PIN, um por pessoa. Guarda só um resumo com sal (PBKDF2), nunca o PIN.
-// Protege de quem pega no aparelho; não cifra as obras guardadas. Todos os PIN dão o mesmo acesso.
+// Bloqueio da app com PIN fixos (js/acesso.js). No código ficam só resumos com sal (PBKDF2-SHA256).
+// É uma barreira contra curiosos: o código da app é público, por isso não trava quem saiba alterá-lo.
 import { kv } from './store.js';
+import { SAL, VOLTAS, ACESSOS } from './acesso.js';
 
-export const MAX_PINS = 4;
-const VOLTAS = 150000;
 const hex = b => Array.from(new Uint8Array(b), x => x.toString(16).padStart(2, '0')).join('');
 const deHex = s => new Uint8Array((String(s).match(/../g) || []).map(x => parseInt(x, 16)));
-const valido = pin => typeof pin === 'string' && /^\d{4,8}$/.test(pin);
-const ERRO_FORMATO = 'O PIN tem de ter 4 a 8 algarismos.';
 
-async function resumo(pin, sal) {
+/** Resumo de um PIN (hex). Por omissão usa o sal e o número de voltas da app. */
+export async function resumoPin(pin, salHex = SAL, voltas = VOLTAS) {
   const chave = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits']);
-  return hex(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: sal, iterations: VOLTAS }, chave, 256));
-}
-async function novoRegisto(nome, pin) {
-  const sal = crypto.getRandomValues(new Uint8Array(16));
-  return { nome, s: hex(sal), h: await resumo(pin, sal) };
+  return hex(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: deHex(salHex), iterations: voltas }, chave, 256));
 }
 function igual(a, b) {
   let dif = a.length ^ b.length;
   for (let i = 0; i < a.length; i++) dif |= a.charCodeAt(i) ^ b.charCodeAt(i % b.length);
   return dif === 0;
 }
-/** Lista guardada; converte o PIN único das versões anteriores da app. */
-async function ler() {
-  const l = await kv.ler('pins');
-  if (Array.isArray(l)) return l.filter(p => p && p.h && p.s);
-  const antigo = await kv.ler('pin');
-  return antigo && antigo.h && antigo.s ? [{ nome: 'Utilizador 1', s: antigo.s, h: antigo.h }] : [];
+/** Nome do acesso a que o PIN pertence, ou null. Só aceita 4 a 12 algarismos. */
+export async function quemE(pin, lista = ACESSOS, salHex = SAL, voltas = VOLTAS) {
+  if (typeof pin !== 'string' || !/^\d{4,12}$/.test(pin)) return null;
+  const h = await resumoPin(pin, salHex, voltas);
+  let nome = null;
+  for (const a of lista) if (a && typeof a.h === 'string' && igual(h, a.h)) nome = a.nome;
+  return nome;
 }
-async function gravar(l) { await kv.guardar('pins', l.length ? l : null); await kv.guardar('pin', null); }
-async function indiceDe(pin, lista) {
-  if (typeof pin !== 'string' || !pin) return -1;
-  for (let i = 0; i < lista.length; i++) if (igual(await resumo(pin, deHex(lista[i].s)), lista[i].h)) return i;
-  return -1;
-}
+export async function verificarPin(...args) { return (await quemE(...args)) !== null; }
+export function temPin() { return ACESSOS.length > 0; }
 
-export async function temPin() { return (await ler()).length > 0; }
-export async function listarPins() { return (await ler()).map(p => ({ nome: p.nome })); }
-/** Nome da pessoa a quem pertence o PIN, ou null. */
-export async function quemE(pin) { const l = await ler(), i = await indiceDe(pin, l); return i < 0 ? null : l[i].nome; }
-export async function verificarPin(pin) { return (await quemE(pin)) !== null; }
-
-export async function adicionarPin(nome, pin) {
-  const n = String(nome ?? '').trim().slice(0, 30);
-  if (!n) return { ok: false, erro: 'Indique o nome da pessoa.' };
-  if (!valido(pin)) return { ok: false, erro: ERRO_FORMATO };
-  const l = await ler();
-  if (l.length >= MAX_PINS) return { ok: false, erro: `Já existem ${MAX_PINS} PIN, que é o máximo.` };
-  if (await indiceDe(pin, l) >= 0) return { ok: false, erro: 'Esse PIN já está a ser usado por outra pessoa.' };
-  l.push(await novoRegisto(n, pin)); await gravar(l);
-  return { ok: true };
+// Tentativas falhadas: ficam guardadas no aparelho, para recarregar a página não as apagar.
+// A cada 5 falhas seguidas há uma espera, que duplica: 30 s, 1 min, 2 min… até 1 hora.
+const POR_BLOCO = 5, BASE_S = 30, MAX_S = 3600;
+export async function esperaSegundos(agora = Date.now()) {
+  const t = await kv.ler('tentativas');
+  return t && t.ate > agora ? Math.ceil((t.ate - agora) / 1000) : 0;
 }
-export async function mudarPin(indice, pin) {
-  const l = await ler();
-  if (!l[indice]) return { ok: false, erro: 'Pessoa não encontrada.' };
-  if (!valido(pin)) return { ok: false, erro: ERRO_FORMATO };
-  const dono = await indiceDe(pin, l);
-  if (dono >= 0 && dono !== indice) return { ok: false, erro: 'Esse PIN já está a ser usado por outra pessoa.' };
-  l[indice] = await novoRegisto(l[indice].nome, pin); await gravar(l);
-  return { ok: true };
+/** Regista uma falha e devolve os segundos de espera que ela causou (0 se ainda não há espera). */
+export async function registarFalha(agora = Date.now()) {
+  const t = (await kv.ler('tentativas')) || { n: 0, ate: 0 };
+  t.n = (t.n || 0) + 1;
+  let espera = 0;
+  if (t.n % POR_BLOCO === 0) { espera = Math.min(MAX_S, BASE_S * 2 ** (t.n / POR_BLOCO - 1)); t.ate = agora + espera * 1000; }
+  await kv.guardar('tentativas', t);
+  return espera;
 }
-/** Sem índice remove todos os PIN; com índice remove só o dessa pessoa. */
-export async function removerPin(indice) {
-  if (indice === undefined) return gravar([]);
-  const l = await ler(); l.splice(indice, 1); return gravar(l);
-}
-/** Define o primeiro PIN (ou substitui o primeiro), como nas versões anteriores. */
-export async function definirPin(pin, nome = 'Utilizador 1') {
-  if (!valido(pin)) return { ok: false, erro: ERRO_FORMATO };
-  const l = await ler();
-  if (!l.length) return adicionarPin(nome, pin);
-  return mudarPin(0, pin);
-}
+export const limparFalhas = () => kv.guardar('tentativas', null);
