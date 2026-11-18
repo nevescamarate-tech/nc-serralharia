@@ -21,7 +21,7 @@ export function descricaoMaterial(trabalho) {
 }
 
 /** Folha de preparação para a oficina: desenhos, material, corte e acessórios. Sem preços. */
-export function folhaPreparacao(obra, trabalho, res, plano, imagem3d, empresa) {
+export function folhaPreparacao(obra, trabalho, res, plano, imagem3d, empresa, fotos = []) {
   const tipo = (TIPOS[trabalho.tipo] || {}).nome || '';
   const mat = listaMaterial(res, trabalho.material).map(l => l.painel
     ? `<tr><td>${esc(l.nome)}</td><td class="n">${l.qtd}</td><td class="n">${dec(l.m2)} m²</td><td class="n">${l.kg ? dec(l.kg, 1) : '—'}</td></tr>`
@@ -47,7 +47,8 @@ ${imagem3d ? `<h3>Pormenor 3D</h3><img class="f-3d" src="${imagem3d}" alt="Porme
 <h3>Lista de corte</h3><p class="f-nota">Comprimentos em mm, pela ponta mais comprida. Ângulos de cada topo (0° = esquadria).</p>
 <table class="f-tab"><tr><th>Perfil</th><th class="n">Qtd.</th><th class="n">Comprimento</th><th class="n">Ângulos</th></tr>${corte}</table>
 ${ac ? `<h3>Acessórios e ferragens</h3><table class="f-tab">${ac}</table>` : ''}
-${trabalho.notas ? `<h3>Notas</h3><p>${esc(trabalho.notas)}</p>` : ''}</article>`;
+${trabalho.notas ? `<h3>Notas</h3><p>${esc(trabalho.notas)}</p>` : ''}
+${fotos.length ? `<h3>Fotos</h3><div class="f-fotos">${fotos.map(f => `<figure><img src="${esc(f.src)}" alt="">${f.legenda ? `<figcaption>${esc(f.legenda)}</figcaption>` : ''}</figure>`).join('')}</div>` : ''}</article>`;
 }
 
 /** Proposta para o cliente. Só preços de venda: nunca valores internos. */

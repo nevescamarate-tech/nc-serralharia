@@ -10,6 +10,7 @@ import { PERFIS, MATERIAIS, CORES_RAL, ACESSORIOS, acabamentoDe } from './catalo
 import { esc, dec, eur, dataPT, logoSVG } from './fmt.js';
 import { num } from './modelos/util.js';
 import { temPin, definirPin, verificarPin, removerPin } from './pin.js';
+import { guardarFoto, lerFoto, apagarFotos, copiarFotos, MAX_FOTOS } from './fotos.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const ecra = $('#ecra'), clone = o => JSON.parse(JSON.stringify(o));
@@ -114,7 +115,7 @@ ${linhas.length ? `<section class="bloco totais"><div><span>Total sem IVA</span>
   $('#duplicar').onclick = async () => {
     const c = clone(obra);
     c.id = store.novoId(); c.nome = (obra.nome || 'Obra') + ' (cópia)'; c.alterado = Date.now();
-    c.trabalhos.forEach(t => { t.id = store.novoId(); });
+    for (const t of c.trabalhos) { t.id = store.novoId(); t.fotos = await copiarFotos(t.fotos); }
     await store.guardarObra(c).catch(falhaGravar); ir(`#/obra/${c.id}`);
   };
   $('#apagar').onclick = async () => {
@@ -137,6 +138,8 @@ async function ecraTrabalho(obraId, tid, sep = 'medidas') {
 <div id="avisos"></div>
 <section id="p-medidas" class="painel"><form id="form" class="bloco" onsubmit="return false"></form>
 <label class="campo notas"><span>Notas para a oficina</span><textarea id="notas" rows="3">${esc(t.notas)}</textarea></label>
+<h3>Fotos</h3><div id="fotos" class="fotos"></div>
+<label class="b-sec ficheiro">+ Juntar fotos<input type="file" id="f-foto" accept="image/*" multiple></label>
 <button class="b-per" id="apagar-t">Apagar este trabalho</button></section>
 <section id="p-desenho" class="painel"><h3>${t.tipo === 'tubagem' ? 'Isométrico' : 'Alçado'}</h3><div class="des" id="alcado"></div><h3>Planta</h3><div class="des" id="planta"></div>
 <button class="b-pri" id="prep">Folha de preparação</button></section>
@@ -202,17 +205,45 @@ ${num('i-mg', 'Margem', t.margem, '%')}</div>
   $('#nome').oninput = e => { t.nome = e.target.value; $('.topo h1').textContent = t.nome || TIPOS[t.tipo].nome; guarda(); };
   ecra.querySelectorAll('.seps button').forEach(b => b.onclick = () => mudaSep(b.dataset.sep));
   $('#notas').oninput = e => { t.notas = e.target.value; guarda(); };
+  // fotos
+  if (!Array.isArray(t.fotos)) t.fotos = [];
+  async function pintaFotos() {
+    const caixa = $('#fotos'); if (!caixa) return;
+    const dados = await Promise.all(t.fotos.map(f => lerFoto(f.id)));
+    if (!$('#fotos')) return;
+    caixa.innerHTML = t.fotos.map((f, i) => `<figure>${dados[i] ? `<img src="${dados[i]}" alt="Foto ${i + 1}">` : '<p class="vazio">Foto em falta</p>'}
+<input data-leg="${i}" value="${esc(f.legenda)}" placeholder="Legenda" aria-label="Legenda da foto ${i + 1}">
+<button type="button" class="b-lig" data-tirar-foto="${i}">Remover</button></figure>`).join('');
+  }
+  $('#fotos').oninput = e => { const i = e.target.dataset.leg; if (i !== undefined) { t.fotos[+i].legenda = e.target.value; guarda(); } };
+  $('#fotos').onclick = async e => {
+    const b = e.target.closest('[data-tirar-foto]'); if (!b) return;
+    const [f] = t.fotos.splice(+b.dataset.tirarFoto, 1); await apagarFotos([f]); guarda(); pintaFotos();
+  };
+  $('#f-foto').onchange = async e => {
+    const fich = [...e.target.files]; e.target.value = '';
+    let falhou = 0;
+    for (const f of fich) {
+      if (t.fotos.length >= MAX_FOTOS) { aviso(`Máximo de ${MAX_FOTOS} fotos por trabalho.`); break; }
+      try { const nova = await guardarFoto(f); if (nova) t.fotos.push(nova); else falhou++; } catch (err) { falhou++; }
+    }
+    if (falhou) aviso(`${falhou} ficheiro(s) não puderam ser guardados como foto.`);
+    guarda(); pintaFotos();
+  };
+  pintaFotos();
   $('#apagar-t').onclick = async () => {
     if (!confirm(`Apagar o trabalho «${t.nome || TIPOS[t.tipo].nome}»? Não pode ser desfeito.`)) return;
     clearTimeout(pend); sujo = false;
-    obra.trabalhos = obra.trabalhos.filter(x => x.id !== t.id); obra.alterado = Date.now();
+    await apagarFotos(t.fotos); obra.trabalhos = obra.trabalhos.filter(x => x.id !== t.id); obra.alterado = Date.now();
     await store.guardarObra(obra).catch(falhaGravar); ir(`#/obra/${obra.id}`);
   };
   $('#centrar').onclick = () => vista && vista.enquadrar();
   $('#prep').onclick = async () => {
     if (!r.res.pecas.length) return aviso('Introduza primeiro as medidas.');
     const { imagem3d } = await import('./vista3d.js');
-    mostrarFolha(folhaPreparacao(obra, t, r.res, r.plano, imagem3d(r.res, t), await store.lerEmpresa()));
+    const fotos = [];
+    for (const f of t.fotos || []) { const src = await lerFoto(f.id); if (src) fotos.push({ src, legenda: f.legenda }); }
+    mostrarFolha(folhaPreparacao(obra, t, r.res, r.plano, imagem3d(r.res, t), await store.lerEmpresa(), fotos));
   };
   pintaAvisos(); pintaDesenho(); pintaAcab(); pintaCusto(); mudaSep(seps[sep] ? sep : 'medidas');
   limpar = () => { clearTimeout(pend); if (sujo) grava(); if (vista) { vista.destruir(); vista = null; } };
@@ -344,8 +375,33 @@ document.addEventListener('visibilitychange', async () => {
   if (saiuEm && Date.now() - saiuEm > MIN_FORA * 60000 && $('#tranca').hidden && await temPin()) trancar();
 });
 
+/** Primeira abertura neste aparelho: propõe criar o PIN. Só pergunta uma vez. */
+async function convidarPin() {
+  if (await store.kv.ler('pinPerguntado')) return;
+  await new Promise(feito => {
+    ecra.innerHTML = `<form class="convite" autocomplete="off"><div class="capa">${logoSVG({ altura: 120 })}</div>
+<h2>Proteger a app com PIN</h2>
+<p>Com PIN, a app pede o código ao abrir e depois de 5 minutos parada. Protege as obras e os preços de quem pegar neste aparelho. Se o esquecer não há forma de o recuperar.</p>
+<label class="campo"><span>PIN (4 a 8 algarismos)</span><input id="cv-pin" type="password" inputmode="numeric" maxlength="8" autocomplete="off"></label>
+<label class="campo"><span>Repetir o PIN</span><input id="cv-rep" type="password" inputmode="numeric" maxlength="8" autocomplete="off"></label>
+<p id="cv-msg" class="alerta" hidden></p>
+<button class="b-pri" type="submit">Ativar o PIN</button>
+<button class="b-lig" type="button" id="cv-nao">Agora não</button></form>`;
+    const fim = async () => { await store.kv.guardar('pinPerguntado', true); feito(); };
+    const erro = m => { $('#cv-msg').textContent = m; $('#cv-msg').hidden = false; };
+    $('.convite').onsubmit = async e => {
+      e.preventDefault();
+      if ($('#cv-pin').value !== $('#cv-rep').value) return erro('Os dois PIN não são iguais.');
+      const r = await definirPin($('#cv-pin').value);
+      if (!r.ok) return erro(r.erro);
+      aviso('PIN ativado.'); fim();
+    };
+    $('#cv-nao').onclick = () => { aviso('Pode ativar o PIN mais tarde em Definições.'); fim(); };
+  });
+}
+
 await store.abrir();
-if (await temPin()) await trancar();
+if (await temPin()) await trancar(); else await convidarPin();
 rota();
 // No computador de desenvolvimento (localhost) o modo sem rede fica desligado, salvo com ?sw=1, para ver sempre a versão mais recente.
 const local = ['localhost', '127.0.0.1'].includes(location.hostname);

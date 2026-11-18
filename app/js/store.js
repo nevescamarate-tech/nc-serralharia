@@ -60,6 +60,8 @@ export async function guardarObra(obra) {
 }
 export async function apagarObra(id) {
   await pronto();
+  const obra = await lerObra(id);
+  for (const t of (obra && obra.trabalhos) || []) for (const f of t.fotos || []) if (f && f.id) await kvGuardar('anexo:foto:' + f.id, null);
   if (mem) { delete mem.obras[id]; gravaMem(); } else await pedido(tx('obras', 'readwrite').delete(id));
   await kvGuardar('anexo:dxf:' + id, null); await kvGuardar('anexo:art:' + id, null);
 }
