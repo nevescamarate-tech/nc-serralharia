@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<title>Testes — NC Serralharia</title>
+<script type="importmap">{ "imports": { "three": "../vendor/three.module.min.js" } }</script>
+<style>body{font:14px system-ui;margin:16px} .f{color:#b00020} .p{color:#1b7f3b} li{margin:2px 0}</style>
+</head>
+<body>
+<h1>Testes</h1>
+<p id="resumo">a correr…</p>
+<ul id="lista"></ul>
+<script type="module">
+import { testes } from './t.js';
+const ficheiros = ['catalogo', 'corte', 'guarda', 'corrimao', 'portao', 'custo', 'store', 'desenho2d', 'folhas', 'dxf', 'articulado', 'pin'];
+const lista = document.getElementById('lista');
+let passou = 0, falhou = 0;
+function linha(okk, txt) {
+  const li = document.createElement('li'); li.className = okk ? 'p' : 'f';
+  li.textContent = (okk ? 'PASSOU ' : 'FALHOU ') + txt; lista.append(li);
+  okk ? passou++ : falhou++;
+}
+for (const f of ficheiros) {
+  const antes = testes.length;
+  try { await import(`./${f}.test.js`); }
+  catch (e) { linha(false, `${f}: não carregou — ${e.message}`); continue; }
+  for (const t of testes.slice(antes)) {
+    try { await t.fn(); linha(true, `${f}: ${t.nome}`); }
+    catch (e) { linha(false, `${f}: ${t.nome} — ${e.message}`); }
+  }
+}
+document.getElementById('resumo').textContent = `${passou} passaram, ${falhou} falharam`;
+</script>
+</body>
+</html>

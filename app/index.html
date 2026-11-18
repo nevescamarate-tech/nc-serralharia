@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>NC Serralharia</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="img/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="img/icon-192.png">
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/print.css" media="print">
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<main id="ecra" class="ecra"><p class="vazio">A abrir…</p></main>
+<div id="aviso" class="aviso" role="status" hidden></div>
+<form id="tranca" class="tranca" hidden autocomplete="off">
+  <div id="tranca-logo"></div>
+  <label class="campo"><span>PIN</span><input id="tranca-pin" type="password" inputmode="numeric" maxlength="8" autocomplete="off" aria-describedby="tranca-msg"></label>
+  <p id="tranca-msg" class="alerta" hidden></p>
+  <button class="b-pri" type="submit">Entrar</button>
+</form>
+<div id="folha-fundo" class="folha-fundo">
+  <div class="folha-barra"><button id="f-fechar" class="b-sec">Fechar</button><button id="f-imprimir" class="b-pri">Imprimir / guardar PDF</button></div>
+  <div id="folha"></div>
+</div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

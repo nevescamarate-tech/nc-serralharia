@@ -1,0 +1,8 @@
+@page { size: A4; margin: 14mm; }
+body { background: #fff !important; }
+.ecra, .aviso, .folha-barra { display: none !important; }
+.folha-fundo { display: block !important; background: #fff !important; padding: 0 !important; min-height: 0 !important; }
+.folha { box-shadow: none; margin: 0; padding: 0; max-width: none; font-size: 11pt; }
+.folha h3, .f-tab tr { break-after: avoid; }
+.f-tab tr, .f-des, .f-3d, .f-totais { break-inside: avoid; }
+* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }

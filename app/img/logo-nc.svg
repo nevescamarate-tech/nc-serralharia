@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" role="img" aria-label="NC serralharia">
+<rect width="400" height="500" fill="#fff"/>
+<g fill="none" stroke="#1a1a1a" stroke-linecap="round" stroke-linejoin="round">
+<path d="M304.8 92.6 A150 150 0 1 0 304.8 307.4" stroke-width="10" stroke-linecap="butt"/>
+<path d="M140 281 V119 L259 281 V119" stroke-width="8"/>
+</g>
+<text x="200" y="455" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="40" letter-spacing="14" fill="#666">serralharia</text>
+</svg>
