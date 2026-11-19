@@ -239,3 +239,4 @@ body.trancado .ecra, body.trancado .folha-fundo { visibility: hidden; }
 .a3-g2 { display: grid; grid-template-columns: 205mm 1fr; gap: 8mm; align-items: start; }
 .a3-g2 .a3-v + .a3-v { margin-top: 4mm; }
 .a3-v .a3-n { max-width: 150mm; }
+.a3-seq { margin: 0; padding-left: 4.5mm; } .a3-seq li { margin-bottom: .8mm; }

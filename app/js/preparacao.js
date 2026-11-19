@@ -1,6 +1,6 @@
 // Preparação para a oficina: lista de posições, aprovisionamento, notas de fabrico, escalas e pormenores.
 import { PERFIS, MATERIAIS, ACESSORIOS, kgm, acabamentoDe, painelInfo } from './catalogo.js';
-import { nomeAcessorio } from './custo.js';
+import { nomeAcessorio, pesoKg, superficieM2 } from './custo.js';
 import { alcadoSVG } from './desenho2d.js';
 
 const arred = (v, c = 1) => Math.round(v * 10 ** c) / 10 ** c;
@@ -9,7 +9,7 @@ const GRUPOS = {
   varao: ['V', 'Varão'], barra: ['B', 'Barra horizontal'], lamina: ['L', 'Lâmina'], tubo: ['TB', 'Troço de tubo'],
   viga: ['VG', 'Viga'], vigap: ['VP', 'Viga de parede'], madre: ['M', 'Madre'], ripa: ['R', 'Ripa'],
   chapa: ['CH', 'Chapa de enchimento'], vidro: ['VD', 'Vidro laminado'], sandwich: ['CB', 'Painel de cobertura'], trapezoidal: ['CB', 'Chapa de cobertura'],
-  base: ['B', 'Quadro de base'], topo: ['TP', 'Quadro de topo'], ombreira: ['J', 'Ombreira da porta'], padieira: ['JP', 'Padieira da porta'],
+  chata: ['BC', 'Barra chata de base'], base: ['B', 'Quadro de base'], topo: ['TP', 'Quadro de topo'], ombreira: ['J', 'Ombreira da porta'], padieira: ['JP', 'Padieira da porta'],
   banzo: ['BZ', 'Banzo'], lacrimada: ['D', 'Degrau (planificado)'], piso: ['F', 'Piso em chapa lacrimada'], parede: ['W', 'Revestimento de parede'],
   almofada: ['AL', 'Almofada quinada (planificada)'], tardoz: ['CT', 'Chapa de trás'], xps: ['IS', 'Isolamento'],
 };
@@ -211,4 +211,65 @@ export function pormenorDegrau(res) {
 ${degrau(0, e)}${degrau(c, 0)}
 <g class="q"><line x1="${f(c)}" y1="-14" x2="${f(2 * c)}" y2="-14"/><line x1="${f(c)}" y1="-22" x2="${f(c)}" y2="-6"/><line x1="${f(2 * c)}" y1="-22" x2="${f(2 * c)}" y2="-6"/><text x="${f(c + c / 2)}" y="-22" text-anchor="middle">${f(c)}</text>
 <line x1="-30" y1="0" x2="-30" y2="${f(e)}"/><line x1="-38" y1="0" x2="-22" y2="0"/><line x1="-38" y1="${f(e)}" x2="-22" y2="${f(e)}"/><text x="-40" y="${f(e / 2 + 6)}" text-anchor="end">${f(e)}</text></g></svg>` };
+}
+
+/** Corte transversal ao muro: rasgo, barra chata, barra e grout (escala 1:1 em mm). null se não for guarda em rasgo. */
+export function pormenorRasgo(res) {
+  const g = res && res.guardaMuro;
+  if (!g) return null;
+  const { rasgo: R, calco, dBarra: d, chata: [lF, eF] } = g, M = R / 2 + 85, f = v => String(Math.round(v * 10) / 10);
+  return { titulo: 'Rasgo e selagem com grout', w: 2 * M + 40, h: R + 230,
+    nota: `Rasgo ${f(R)}×${f(R)} feito na betonagem com negativo. Barra chata ${f(lF)}×${f(eF)} sobre calços inox (folga ${calco}); barras soldadas a toda a volta; grout cimentício sem retração à face do muro, cura húmida 3 dias. [A CONFIRMAR] largura do muro e armaduras.`,
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-M - 30} -120 ${2 * M + 40} ${R + 230}"><style>.b{fill:url(#hr);stroke:#111;stroke-width:.6}.g{fill:#c4c4c4;stroke:#111;stroke-width:.6}.l{fill:#fff;stroke:#111;stroke-width:.9}.k{fill:#333}.q line{stroke:#1f4e9c;stroke-width:.5}.q text,.t{font-family:Helvetica,Arial,sans-serif;font-size:8px;fill:#1f4e9c}.t{fill:#111}</style>
+<defs><pattern id="hr" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#888" stroke-width=".6"/></pattern></defs>
+<rect class="b" x="${-M}" y="0" width="${2 * M}" height="${R + 100}"/><rect class="g" x="${-R / 2}" y="0" width="${R}" height="${R}"/>
+<rect class="k" x="${f(-lF / 2)}" y="${f(R - calco - eF)}" width="${f(lF)}" height="${f(eF)}"/><rect class="l" x="${f(-d / 2)}" y="-120" width="${f(d)}" height="${f(120 + R - calco - eF)}"/>
+<g class="q"><line x1="${-R / 2}" y1="-14" x2="${R / 2}" y2="-14"/><line x1="${-R / 2}" y1="-20" x2="${-R / 2}" y2="-8"/><line x1="${R / 2}" y1="-20" x2="${R / 2}" y2="-8"/><text x="${R / 2 + 5}" y="-11">${f(R)}</text>
+<line x1="${-M - 14}" y1="0" x2="${-M - 14}" y2="${R}"/><line x1="${-M - 20}" y1="0" x2="${-M - 8}" y2="0"/><line x1="${-M - 20}" y1="${R}" x2="${-M - 8}" y2="${R}"/></g>
+<text class="t" x="${R / 2 + 6}" y="${R / 2}">grout</text><text class="t" x="${R / 2 + 6}" y="${R + 40}">betão do muro</text><text class="t" x="${f(d / 2 + 5)}" y="-60">barra Ø${f(d)}</text></svg>` };
+}
+
+const metros = v => String(Math.round(v) / 1000).replace('.', ',') + ' m';
+const dec1 = (v, c = 1) => (Math.round(v * 10 ** c) / 10 ** c).toFixed(c).replace('.', ',');
+/** Quadro resumo do trabalho: pares [rótulo, valor] para a folha 1. */
+export function quadroResumo(trabalho, res) {
+  const q = [], mat = MATERIAIS[trabalho.material] ? trabalho.material : 'aco', kg = pesoKg(res, mat), L = res.comprimentoTotal || 0;
+  if (L > 0) q.push(['Comprimento', metros(L)]);
+  if (res.largura > 0) q.push(['Largura', metros(res.largura)]);
+  if (res.altura > 0) q.push(['Altura', metros(res.altura)]);
+  if (res.guardaMuro) q.push(['Módulos', `${res.guardaMuro.modulos} de ${Math.round(res.guardaMuro.modulo)} mm (o último de acerto)`], ['Barras', `${res.guardaMuro.barras} a ${Math.round(res.guardaMuro.passo)} mm entre eixos`], ['Grout', `${dec1(res.guardaMuro.groutM3, 2)} m³ (com 10 %)`]);
+  if (res.modulos) q.push(['Módulos', String(res.modulos)]);
+  if (res.unidades > 1) q.push(['Unidades iguais', String(res.unidades)]);
+  if (res.escada) q.push(['Espelhos', `${res.escada.n} × ${dec1(res.escada.espelho)} mm`], ['Degraus', `${res.escada.degraus} × ${Math.round(res.escada.cobertor)} mm`], ['Inclinação', dec1(res.escada.angulo) + '°']);
+  if (res.telheiro || res.abrigo) q.push(['Pendente', dec1(res.pendente || 0) + ' %'], ['Área em planta', dec1(L * (res.largura || 0) / 1e6) + ' m²']);
+  if (res.dn) q.push(['Tubo', `DN${res.dn} · Ø${dec1(res.de)} × ${dec1(res.esp)} mm`]);
+  q.push(['Peso do metal', dec1(kg) + ' kg']);
+  if (L > 0 && kg > 0 && !res.telheiro && !res.abrigo) q.push(['Peso por metro', dec1(kg / (L / 1000)) + ' kg/m']);
+  q.push(['Superfície a tratar', dec1(superficieM2(res)) + ' m²'], ['Peças a cortar', String(res.pecas.length)]);
+  return q;
+}
+
+/** Sequência de fabrico e montagem, por passos. */
+export function sequenciaFabrico(trabalho, res) {
+  const ac = acabamentoDe(MATERIAIS[trabalho.material] ? trabalho.material : 'aco', trabalho.acabamento);
+  const trat = { galvanizado: 'Furos de respiro, limpar e enviar para galvanizar; endireitar empenos no regresso.', galv_lacado: 'Furos de respiro, galvanizar, endireitar empenos e lacar.',
+    pintado: 'Limpar as soldaduras e pintar em oficina (primário + 2 demãos).', lacado: 'Limpar e enviar para lacar.', nenhum: 'Limpar as soldaduras; sem tratamento.' }[ac.id] || `Limpar as soldaduras; acabamento ${ac.nome.toLowerCase()}.`;
+  if (res && res.guardaMuro) return [
+    'Antes da betonagem do muro: enviar o desenho do rasgo e entregar o negativo; quem faz o muro fixa-o à cofragem.',
+    'Com o muro feito: levantamento dos troços e receção do rasgo. Só depois cortar os módulos de acerto.',
+    'Cortar as barras em feixe; corrimão e barra chata por módulo. Furar o corrimão com gabarito.',
+    'Montar em gabarito: barras a entrar no corrimão e assentes na barra chata; soldar a toda a volta.',
+    trat + ' A barra chata vai para o grout: mascarar.',
+    'Em obra: retirar o negativo, limpar e saturar o rasgo com água na véspera.',
+    'Assentar o módulo sobre 3 calços inox; linha e nível; aprumo com 2 escoras por módulo; travar com cunhas.',
+    'Verter o grout de um só lado até sair do outro, um troço de cada vez; acabar à face do muro.',
+    'Cura húmida 3 dias; às 24 h tirar escoras e cunhas de cima e retocar. Junta de módulo em cada junta de dilatação do muro.'];
+  const tub = trabalho.tipo === 'tubagem';
+  return [
+    'Confirmar as medidas em obra e resolver os pontos «a confirmar» antes de cortar.',
+    'Cortar pela lista de corte por vara e marcar cada peça com a sua posição.',
+    tub ? 'Pingar os troços e as curvas em bancada, conferir o alinhamento e soldar com purga.' : 'Montar em mesa plana ou gabarito, pingar, conferir esquadria e diagonais, e só depois soldar.',
+    tub ? 'Decapar e passivar os cordões; ensaio de estanquidade.' : trat,
+    'Controlo final: medidas, folgas e acabamento. Proteger para o transporte.',
+    tub ? 'Montagem em obra com os suportes do isométrico; apertos e ensaio final.' : 'Montagem em obra: marcar, nivelar, aprumar e fixar; retoques de acabamento e limpeza.'];
 }

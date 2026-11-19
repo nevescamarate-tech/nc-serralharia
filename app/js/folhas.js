@@ -2,7 +2,7 @@
 import { esc, dec, eur, dataPT, logoSVG } from './fmt.js';
 import { MATERIAIS, acabamentoDe } from './catalogo.js';
 import { superficieM2, pesoKg } from './custo.js';
-import { listaPosicoes, aprovisionamento, notasFabrico, escalaPara, pormenorVao, pormenorPe, pormenorAlmofada, pormenorDegrau } from './preparacao.js';
+import { listaPosicoes, aprovisionamento, notasFabrico, escalaPara, pormenorVao, pormenorPe, pormenorAlmofada, pormenorDegrau, pormenorRasgo, quadroResumo, sequenciaFabrico } from './preparacao.js';
 import { alcadoSVG, plantaSVG } from './desenho2d.js';
 import { TIPOS } from './calc.js';
 
@@ -22,7 +22,7 @@ export function descricaoMaterial(trabalho) {
 }
 
 // ---------- folhas A3 de preparação ----------
-const LETRA_TIPO = { guarda: 'G', corrimao: 'C', portao: 'P', tubagem: 'T', telheiro: 'TL', grade: 'GR', escada: 'E', gradeamento: 'GM', abrigo: 'AB' };
+const LETRA_TIPO = { guarda: 'G', corrimao: 'C', portao: 'P', tubagem: 'T', telheiro: 'TL', grade: 'GR', escada: 'E', gradeamento: 'GM', abrigo: 'AB', guardamuro: 'GB' };
 const virg = (v, c = 1) => String(Math.round(v * 10 ** c) / 10 ** c).replace('.', ',');
 
 /** Põe um SVG à escala normalizada que caiba na caixa (mm de papel). unidade = mm reais por unidade do viewBox. */
@@ -76,7 +76,8 @@ export function folhaPreparacao(obra, trabalho, res, plano, imagem3d, empresa, f
   // 1 — conjunto, notas e lista de posições
   const kg = pesoKg(res, trabalho.material);
   const avisos = [...res.avisos, ...plano.avisos];
-  const notas = notasFabrico(trabalho, res).map(b => `<h4>${esc(b.titulo)}</h4>${b.linhas.map(l => `<p>${esc(l)}</p>`).join('')}`).join('') +
+  const resumo = `<h4>Quadro resumo</h4><table class="a3-t">${quadroResumo(trabalho, res).map(([a, b]) => `<tr><td>${esc(a)}</td><td class="n"><b>${esc(b)}</b></td></tr>`).join('')}</table>`;
+  const notas = resumo + notasFabrico(trabalho, res).map(b => `<h4>${esc(b.titulo)}</h4>${b.linhas.map(l => `<p>${esc(l)}</p>`).join('')}`).join('') +
     (avisos.length ? `<h4>Avisos</h4>${avisos.map(a => `<p class="av">${esc(a)}</p>`).join('')}` : '') +
     (trabalho.notas ? `<h4>Notas para a oficina</h4><p>${esc(trabalho.notas).replace(/\n/g, '<br>')}</p>` : '');
   const e1 = new Set(), CAB = imagem3d ? 13 : 20, RESTO = 34;
@@ -88,7 +89,7 @@ export function folhaPreparacao(obra, trabalho, res, plano, imagem3d, empresa, f
     nova('Lista de posições (continuação)', `<h3>Lista de posições (continuação)</h3>${tabelaPosicoes(posicoes.slice(i, i + RESTO))}`);
 
   // 2 — vistas e pormenores
-  const e2 = new Set(), pe = pormenorPe(res) || pormenorAlmofada(res) || pormenorDegrau(res), vao = pormenorVao(res);
+  const e2 = new Set(), pe = pormenorPe(res) || pormenorAlmofada(res) || pormenorDegrau(res) || pormenorRasgo(res), vao = pormenorVao(res);
   const alc = alcadoSVG(res, { fino: true, refs: refDe }), pla = plantaSVG(res, { fino: true });
   let corpo2;
   if (tub) corpo2 = `${vista('Isométrico', alc, 392, 150, new Set(), 'Isométrico sem escala; cotas ao eixo, em mm.')}${vista('Planta', pla, 392, 60, e2)}`;
@@ -113,7 +114,8 @@ export function folhaPreparacao(obra, trabalho, res, plano, imagem3d, empresa, f
 ${ap.chapas.map(c => `<tr><td>${esc(c.nome)}</td><td class="n">${c.qtd}</td><td class="n">${dec(c.m2)}</td><td class="n">${c.kg ? dec(c.kg, 1) : '—'}</td></tr>`).join('')}</table>` : ''}
 ${ap.compra.length ? `<h4>Ferragens e acessórios (compra)</h4><table class="a3-t"><tr><th>Descrição</th><th class="n">Qtd.</th><th>Un</th></tr>
 ${ap.compra.map(a => `<tr><td>${esc(a.nome)}</td><td class="n">${dec(a.qtd, a.qtd % 1 ? 2 : 0)}</td><td>${esc(a.un)}</td></tr>`).join('')}</table>` : ''}
-<h4>Como ler</h4><p>Cada barra é uma vara. Os cortes levam a posição e o comprimento em mm. A cinzento, a sobra.</p></aside>`;
+<h4>Como ler</h4><p>Cada barra é uma vara. Os cortes levam a posição e o comprimento em mm. A cinzento, a sobra.</p>
+<h4>Sequência de fabrico e montagem</h4><ol class="a3-seq">${sequenciaFabrico(trabalho, res).map(s => `<li>${esc(s)}</li>`).join('')}</ol></aside>`;
   const blocos = ap.varas.flatMap(blocoVaras), paginas = [[]];
   let alt = 0;
   for (const b of blocos) { if (alt + b.alt > 205) { paginas.push([]); alt = 0; } paginas[paginas.length - 1].push(b.html); alt += b.alt; }

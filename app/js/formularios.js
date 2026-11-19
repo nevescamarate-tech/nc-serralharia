@@ -200,3 +200,14 @@ CAMPOS.abrigo = [
   P('pBase', 'Perfil do quadro de base', ['tret', 'tq'], { av: true }),
   P('pTopo', 'Perfil do topo e das travessas', ['tq', 'tret'], { av: true }),
 ];
+
+CAMPOS.guardamuro = [
+  N('comp', 'Comprimento total da guarda'),
+  N('altura', 'Altura acima do muro (até ao topo do corrimão)'),
+  N('passo', 'Distância entre eixos das barras'),
+  N('modulo', 'Comprimento do módulo', { av: true }),
+  N('rasgo', 'Rasgo no muro (largura = profundidade)', { av: true }),
+  P('pCorrimao', 'Tubo do corrimão', ['tr', 'tq'], { av: true }),
+  P('pBarra', 'Perfil das barras', ['tr', 'varao', 'vq'], { av: true }),
+  P('pChata', 'Barra chata de base', ['barra'], { av: true }),
+];

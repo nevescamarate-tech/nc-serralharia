@@ -7,10 +7,12 @@ import { calcGrade, DEF_GRADE } from './modelos/grade.js';
 import { calcEscada, DEF_ESCADA } from './modelos/escada.js';
 import { calcGradeamento, DEF_GRADEAMENTO } from './modelos/gradeamento.js';
 import { calcAbrigo, DEF_ABRIGO } from './modelos/abrigo.js';
+import { calcGuardaMuro, DEF_GUARDAMURO } from './modelos/guardamuro.js';
 import { vazio } from './modelos/util.js';
 
 export const TIPOS = {
   guarda: { nome: 'Guarda', calc: calcGuarda, def: DEF_GUARDA },
+  guardamuro: { nome: 'Guarda de barras em muro', calc: calcGuardaMuro, def: DEF_GUARDAMURO },
   corrimao: { nome: 'Corrimão', calc: calcCorrimao, def: DEF_CORRIMAO },
   portao: { nome: 'Portão', calc: calcPortao, def: DEF_PORTAO },
   tubagem: { nome: 'Tubagem', calc: calcTubagem, def: DEF_TUBAGEM },
@@ -18,7 +20,7 @@ export const TIPOS = {
   grade: { nome: 'Grade de janela', calc: calcGrade, def: DEF_GRADE },
   gradeamento: { nome: 'Gradeamento de muro', calc: calcGradeamento, def: DEF_GRADEAMENTO },
   escada: { nome: 'Escada reta', calc: calcEscada, def: DEF_ESCADA },
-  abrigo: { nome: 'Abrigo em quadro', calc: calcAbrigo, def: DEF_ABRIGO },
+  abrigo: { nome: 'Abrigo em quadro', calc: calcAbrigo, def: DEF_ABRIGO, oculto: true },   // fora da lista de tipos novos, a pedido
 };
 
 /** Calcula as peças de um trabalho. Nunca lança erro: devolve avisos. */

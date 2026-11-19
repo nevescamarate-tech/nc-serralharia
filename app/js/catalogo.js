@@ -4,7 +4,7 @@ export const PERFIS = {};
 function add(id, nome, forma, o) { PERFIS[id] = { id, nome, forma, ...o }; }
 
 // Tubo redondo (d = diâmetro exterior, e = espessura)
-[[20, 1.5, 'tr20x1.5'], [26.9, 2, 'tr27x2'], [33.7, 2, 'tr33x2'], [42.4, 2, 'tr42x2'], [48.3, 2, 'tr48x2'], [60.3, 2, 'tr60x2']]
+[[20, 1.5, 'tr20x1.5'], [26.9, 2, 'tr27x2'], [33.7, 2, 'tr33x2'], [42.4, 2, 'tr42x2'], [48.3, 2, 'tr48x2'], [50, 2, 'tr50x2'], [60.3, 2, 'tr60x2']]
   .forEach(([d, e, id]) => add(id, `Tubo redondo Ø${String(d).replace('.', ',')}×${e}`, 'tr', { d, e }));
 // Tubo quadrado
 [[20, 2], [30, 2], [40, 2], [50, 2], [60, 3], [80, 3], [80, 4], [100, 3], [100, 4], [120, 4]]
@@ -137,6 +137,9 @@ export const ACESSORIOS = {
   parafuso_cob: { nome: 'Autoperfurante de cobertura com anilha EPDM', un: 'un' },
   rebite: { nome: 'Rebite cego inox A2 Ø4,8', un: 'un' },
   pata_grade: { nome: 'Pata de fixação em barra chata 40×5', un: 'un' },
+  casquilho: { nome: 'Casquilho de união do corrimão', un: 'un' },
+  calco_inox: { nome: 'Calço inox de nivelamento', un: 'un' },
+  grout: { nome: 'Grout cimentício sem retração, saco de 25 kg', un: 'un' },
 };
 
 export const PRECOS_EXEMPLO = {
@@ -145,7 +148,7 @@ export const PRECOS_EXEMPLO = {
   m2: { vidro: 95, chapa_aco: 28, chapa_inox: 95, chapa_aluminio: 45, sandwich: 24, trapezoidal: 11, xps: 9, lacrimada: 42 },
   acessorios: { sapata: 4.5, fix_lateral: 7, bucha: 0.6, tampa: 0.8, pinca_vidro: 9, suporte_parede: 5.5, curva90: 6,
     dobradica: 8, fechadura: 45, batente_chao: 12, roda: 22, carril: 14, guia_sup: 18, batente_fim: 15,
-    cremalheira: 9, motor_prep: 35, placa_base: 14, perno: 2.5, bucha_quimica: 4.5, parafuso_cob: 0.25, rebite: 0.12, pata_grade: 1.8, curva_inox: 9, flange_inox: 18, tampao_inox: 7, te_inox: 14, abracadeira_inox: 4 },
+    cremalheira: 9, motor_prep: 35, placa_base: 14, perno: 2.5, bucha_quimica: 4.5, parafuso_cob: 0.25, rebite: 0.12, pata_grade: 1.8, casquilho: 3, calco_inox: 0.6, grout: 14, curva_inox: 9, flange_inox: 18, tampao_inox: 7, te_inox: 14, abracadeira_inox: 4 },
   horaOficina: 28, horaMontagem: 30, deslocacao: 40,
   acabamento: { pintado: 12, lacado: 16, galvanizado: 0.75, escovado: 8, polido: 18, anodizado: 14, decapado: 6 },
   margem: 30, iva: 23, vara: 6000, serra: 3, materialModo: 'varas', desperdicio: 8, consumiveis: 3,

@@ -43,6 +43,7 @@ function descricao(trabalho, res) {
   if (trabalho.tipo === 'corrimao') return `Corrimão com ${mm(res.comprimentoTotal)} de comprimento, ${m.montagem === 'prumos' ? 'sobre prumos' : 'fixo à parede'}.`;
   if (trabalho.tipo === 'tubagem') { const n = ref => (res.acessorios.find(a => a.ref === ref) || { qtd: 0 }).qtd;
     return `Tubagem soldada DN${res.dn} (Ø${dec(res.de, 1)} × ${dec(res.esp, 1)} mm) com ${mm(res.comprimentoTotal)}, ${n('curva_inox')} curva(s), ${n('flange_inox')} flange(s) e ${n('te_inox')} tê(s).`; }
+  if (trabalho.tipo === 'guardamuro') return `Guarda de barras verticais com ${mm(res.comprimentoTotal)} e ${mm(res.altura)} acima do muro, em ${res.guardaMuro.modulos} módulo(s), fixada em rasgo selado com grout.`;
   if (trabalho.tipo === 'abrigo') return `Abrigo em estrutura metálica com ${mm(res.comprimentoTotal)} × ${mm(res.largura)} e ${mm(res.altura)} de altura${m.porta ? ', com porta' : ''}${m.piso ? ', piso em chapa lacrimada' : ''}${m.revestimento === 'trapezoidal' ? ', paredes em chapa trapezoidal' : ''}${m.cobertura !== 'nenhuma' ? ' e cobertura' : ''}.`;
   if (trabalho.tipo === 'gradeamento') return `Gradeamento de muro com ${mm(res.comprimentoTotal)} em ${res.modulos} módulo(s) e ${mm(res.altura)} de altura, em ${m.enchimento === 'barras' ? 'barras horizontais' : 'varões verticais'}.`;
   if (trabalho.tipo === 'escada') return `Escada reta com ${res.escada.degraus} degraus em chapa lacrimada (espelho ${dec(res.escada.espelho, 0)} mm, cobertor ${dec(res.escada.cobertor, 0)} mm), ${mm(res.largura)} de largura e ${mm(res.altura)} de desnível.`;
@@ -100,7 +101,7 @@ async function ecraObra(id) {
 <section class="lista">${linhas.length ? linhas.map(({ t, c, res }) => `<a class="cartao" href="#/trabalho/${obra.id}/${t.id}">
 <strong>${esc(t.nome || TIPOS[t.tipo].nome)}</strong><span>${esc(TIPOS[t.tipo].nome)} · ${esc(descricaoMaterial(t))}</span>
 <small>${res.pecas.length ? eur(c.venda) + ' sem IVA' : 'Faltam medidas'}</small></a>`).join('') : '<p class="vazio">Sem trabalhos. Escolha o tipo para começar.</p>'}</section>
-<div class="tipos">${Object.entries(TIPOS).map(([k, t]) => `<button class="b-sec" data-tipo="${k}">+ ${t.nome}</button>`).join('')}</div>
+<div class="tipos">${Object.entries(TIPOS).filter(([, t]) => !t.oculto).map(([k, t]) => `<button class="b-sec" data-tipo="${k}">+ ${t.nome}</button>`).join('')}</div>
 <div class="tipos dois"><a class="b-sec" href="#/desenho/${obra.id}">Medir num desenho (DXF)</a><a class="b-sec" href="#/articulado/${obra.id}">Ler articulado (Excel)</a></div>
 ${linhas.length ? `<section class="bloco totais"><div><span>Total sem IVA</span><strong>${eur(total)}</strong></div><div><span>Total com IVA</span><strong>${eur(total + iva)}</strong></div>
 <button class="b-pri" id="proposta">Proposta para o cliente</button></section>` : ''}
@@ -139,7 +140,7 @@ async function ecraTrabalho(obraId, tid, sep = 'medidas') {
   const guarda = () => { sujo = true; clearTimeout(pend); pend = setTimeout(grava, 350); };
   const seps = { medidas: 'Medidas', desenho: 'Desenho', tres: '3D', custo: 'Custo' };
   ecra.innerHTML = `${topo(t.nome || TIPOS[t.tipo].nome, `#/obra/${obra.id}`)}
-<label class="campo linha-nome"><span>Nome do trabalho</span><input id="nome" value="${esc(t.nome)}" placeholder="ex.: ${{ guarda: 'varanda do 1.º andar', corrimao: 'escada interior', portao: 'entrada principal', tubagem: 'linha de água da cozinha', telheiro: 'telheiro do logradouro', grade: 'grades das janelas do rés-do-chão', escada: 'escada de acesso ao terraço', gradeamento: 'muro da frente', abrigo: 'abrigo do equipamento' }[t.tipo]}"></label>
+<label class="campo linha-nome"><span>Nome do trabalho</span><input id="nome" value="${esc(t.nome)}" placeholder="ex.: ${{ guarda: 'varanda do 1.º andar', corrimao: 'escada interior', portao: 'entrada principal', tubagem: 'linha de água da cozinha', telheiro: 'telheiro do logradouro', grade: 'grades das janelas do rés-do-chão', escada: 'escada de acesso ao terraço', gradeamento: 'muro da frente', abrigo: 'abrigo do equipamento', guardamuro: 'guarda do muro da ribeira' }[t.tipo]}"></label>
 <nav class="seps" role="tablist">${Object.entries(seps).map(([k, n]) => `<button role="tab" data-sep="${k}" aria-selected="${k === sep}">${n}</button>`).join('')}</nav>
 <div id="avisos"></div>
 <div class="trab"><section id="p-medidas" class="painel"><form id="form" class="bloco" onsubmit="return false"></form>
