@@ -4,6 +4,7 @@ import { calcPortao, DEF_PORTAO } from './modelos/portao.js';
 import { calcTubagem, DEF_TUBAGEM } from './modelos/tubagem.js';
 import { calcTelheiro, DEF_TELHEIRO } from './modelos/telheiro.js';
 import { calcGrade, DEF_GRADE } from './modelos/grade.js';
+import { calcEscada, DEF_ESCADA } from './modelos/escada.js';
 import { vazio } from './modelos/util.js';
 
 export const TIPOS = {
@@ -13,6 +14,7 @@ export const TIPOS = {
   tubagem: { nome: 'Tubagem', calc: calcTubagem, def: DEF_TUBAGEM },
   telheiro: { nome: 'Telheiro / pérgula', calc: calcTelheiro, def: DEF_TELHEIRO },
   grade: { nome: 'Grade de janela', calc: calcGrade, def: DEF_GRADE },
+  escada: { nome: 'Escada reta', calc: calcEscada, def: DEF_ESCADA },
 };
 
 /** Calcula as peças de um trabalho. Nunca lança erro: devolve avisos. */

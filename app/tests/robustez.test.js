@@ -27,6 +27,7 @@ const geradores = {
   telheiro: () => ({ comp: entre(600, 40000), largura: entre(600, 9000), altura: entre(1000, 6000), pendente: um([0, 5, 10, entre(0, 40)]), apoio: um(['pilares', 'parede']), cobertura: um(['sandwich', 'trapezoidal', 'ripado', 'nenhuma']),
     pPilar: um(perfis('tq', 'tret', 'tr')), pViga: um(perfis('tret', 'tq')), pMadre: um(TUBOS), vaoMax: um([3500, entre(500, 8000)]), maxMadres: um([1000, 450, entre(100, 2000)]), beiral: um([200, 0, entre(0, 800)]) }),
   grade: () => ({ largura: entre(200, 5000), altura: entre(200, 3500), qtd: um([1, 1, entre(1, 12)]), pAro: um(perfis('tret', 'tq', 'barra')), pBarra: um(perfis('tr', 'varao', 'vq', 'tq')), vaoMax: um([120, 110, entre(40, 200)]) }),
+  escada: () => ({ desnivel: entre(300, 7000), largura: um([900, 1000, entre(400, 2500)]), cobertor: um([280, 250, entre(150, 450)]), espelhoMax: um([180, 170, entre(100, 240)]), pBanzo: um(perfis('tret', 'tq')) }),
 };
 const obra = { cliente: 'C', nome: 'O', morada: '', numero: '1', data: '2026-11-18', validade: 30, condicoes: '' };
 

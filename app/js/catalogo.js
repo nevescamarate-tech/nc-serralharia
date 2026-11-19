@@ -142,7 +142,7 @@ export const ACESSORIOS = {
 export const PRECOS_EXEMPLO = {
   exemplo: true,
   kg: { aco: 1.6, inox304: 5.5, inox316: 7.5, aluminio: 6.0 },
-  m2: { vidro: 95, chapa_aco: 28, chapa_inox: 95, chapa_aluminio: 45, sandwich: 24, trapezoidal: 11, xps: 9 },
+  m2: { vidro: 95, chapa_aco: 28, chapa_inox: 95, chapa_aluminio: 45, sandwich: 24, trapezoidal: 11, xps: 9, lacrimada: 42 },
   acessorios: { sapata: 4.5, fix_lateral: 7, bucha: 0.6, tampa: 0.8, pinca_vidro: 9, suporte_parede: 5.5, curva90: 6,
     dobradica: 8, fechadura: 45, batente_chao: 12, roda: 22, carril: 14, guia_sup: 18, batente_fim: 15,
     cremalheira: 9, motor_prep: 35, placa_base: 14, perno: 2.5, bucha_quimica: 4.5, parafuso_cob: 0.25, rebite: 0.12, pata_grade: 1.8, curva_inox: 9, flange_inox: 18, tampao_inox: 7, te_inox: 14, abracadeira_inox: 4 },
@@ -156,6 +156,7 @@ export const PAINEIS = {
   vidro: { nome: 'Vidro laminado' }, chapa: { nome: 'Chapa', metal: true },
   almofada: { nome: 'Chapa quinada (almofada)', metal: true }, tardoz: { nome: 'Chapa lisa', metal: true },
   xps: { nome: 'Isolamento XPS', kgm2: 1.3, preco: 'xps' },
+  lacrimada: { nome: 'Chapa lacrimada', metal: true, preco: 'lacrimada' },
   sandwich: { nome: 'Painel sandwich de cobertura', kgm2: 10, preco: 'sandwich' },
   trapezoidal: { nome: 'Chapa trapezoidal de cobertura', kgm2: 6.5, preco: 'trapezoidal' },
 };

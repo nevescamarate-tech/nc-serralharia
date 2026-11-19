@@ -9,6 +9,7 @@ const GRUPOS = {
   varao: ['V', 'Varão'], barra: ['B', 'Barra horizontal'], lamina: ['L', 'Lâmina'], tubo: ['TB', 'Troço de tubo'],
   viga: ['VG', 'Viga'], vigap: ['VP', 'Viga de parede'], madre: ['M', 'Madre'], ripa: ['R', 'Ripa'],
   chapa: ['CH', 'Chapa de enchimento'], vidro: ['VD', 'Vidro laminado'], sandwich: ['CB', 'Painel de cobertura'], trapezoidal: ['CB', 'Chapa de cobertura'],
+  banzo: ['BZ', 'Banzo'], lacrimada: ['D', 'Degrau (planificado)'],
   almofada: ['AL', 'Almofada quinada (planificada)'], tardoz: ['CT', 'Chapa de trás'], xps: ['IS', 'Isolamento'],
 };
 const ORDEM = Object.keys(GRUPOS);
@@ -107,6 +108,8 @@ export function notasFabrico(trabalho, res) {
   ];
   if (res.telheiro) blocos.splice(4, 1, { titulo: 'Montagem', linhas: ['Pórticos (pilares e viga) soldados em oficina; madres e cobertura montadas em obra.', 'Confirmar em obra o alinhamento e o nível das fundações antes do fabrico.'] },
     { titulo: 'Estrutura', linhas: ['[A CALCULAR] Secções, placas de base, pernos, fundações e contraventamento por técnico habilitado (vento, neve e peso da cobertura).'] });
+  if (res.escada) blocos.splice(4, 1, { titulo: 'Montagem', linhas: ['Degraus soldados entre os banzos, com as abas para baixo; conferir o nível de cada degrau.', 'Confirmar em obra o desnível real de piso acabado a piso acabado antes do fabrico.'] },
+    { titulo: 'Estrutura', linhas: ['[A CALCULAR] Banzos, degraus, chapas de apoio e fixações por técnico habilitado. Guarda da escada em trabalho à parte.'] });
   blocos.push({ titulo: 'Atenção', linhas: ['[A CONFIRMAR] Notas geradas pela app conforme o material e o acabamento; rever antes do fabrico.'] });
   return blocos;
 }
@@ -122,7 +125,7 @@ const VERTICAIS = ['prumo', 'aro', 'pilar', 'travessa'];
 const vertical = p => Math.abs(p.s[2] - p.s[0]) < 1;
 /** Pormenor ampliado do primeiro vão: vão livre entre montantes e folga do enchimento. '' se não se aplicar. */
 export function pormenorVao(res) {
-  if (!res || !res.pecas.length || res.telheiro || res.almofadas || (res.cotas || []).some(c => c.tipo === 'l')) return '';
+  if (!res || !res.pecas.length || res.telheiro || res.almofadas || res.escada || (res.cotas || []).some(c => c.tipo === 'l')) return '';
   const mont = res.pecas.filter(p => VERTICAIS.includes(p.grupo) && vertical(p)).sort((a, b) => a.s[0] - b.s[0]);
   if (mont.length < 2) return '';
   const a = mont[0], b = mont.find(p => p.s[0] - a.s[0] > a.t + 20);
@@ -190,4 +193,19 @@ export function pormenorAlmofada(res) {
 <defs><pattern id="hz" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" stroke="#aaa" stroke-width=".6"/></pattern></defs>
 ${iso}<rect class="l" x="${f(-a / 2)}" y="0" width="${f(a)}" height="${f(a)}"/><rect class="l" x="${f(-a / 2 + 2)}" y="2" width="${f(a - 4)}" height="${f(a - 4)}"/>
 ${pele(-1)}${pele(1)}${tard}${cotaV}${cotaJ}<text class="t" x="${f(-a / 2 + 4)}" y="${f(a / 2 + 2)}">montante</text><text class="t" x="${-M + 30}" y="${-r - 4}">frente</text></svg>` };
+}
+
+/** Perfil de dois degraus seguidos, com espelho e cobertor (escala 1:1 em mm). null se não for escada. */
+export function pormenorDegrau(res) {
+  const es = res && res.escada;
+  if (!es) return null;
+  const { espelho: e, cobertor: c, n } = es, f = v => String(Math.round(v * 10) / 10), aba = 30;
+  const degrau = (x, y) => `<polyline class="ch" points="${f(x)},${f(y + aba)} ${f(x)},${f(y)} ${f(x + c)},${f(y)} ${f(x + c)},${f(y + aba)}"/>`;
+  return { titulo: 'Degrau tipo', w: 2 * c + 150, h: 2 * e + 110,
+    nota: `${n} espelhos de ${String(Math.round(e * 10) / 10).replace('.', ',')} mm · ${n - 1} degraus com cobertor de ${Math.round(c)} mm · inclinação ${String(es.angulo).replace('.', ',')}°. Chapa lacrimada 4 mm quinada com 2 abas de ${aba} mm, soldada aos banzos. [A CONFIRMAR] espessura e reforço conforme a largura.`,
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-90 ${f(-e - 40)} ${f(2 * c + 150)} ${f(2 * e + 110)}"><style>.ch{fill:none;stroke:#111;stroke-width:3}.q line{stroke:#1f4e9c;stroke-width:.8}.q text{font-family:Helvetica,Arial,sans-serif;font-size:16px;fill:#1f4e9c}.b{stroke:#999;stroke-width:.8;stroke-dasharray:8 4;fill:none}</style>
+<line class="b" x1="-60" y1="${f(e + e / 2 + 60 * e / c)}" x2="${f(2 * c + 40)}" y2="${f(e / 2 - (2 * c + 40) * e / c + e)}"/>
+${degrau(0, e)}${degrau(c, 0)}
+<g class="q"><line x1="${f(c)}" y1="-14" x2="${f(2 * c)}" y2="-14"/><line x1="${f(c)}" y1="-22" x2="${f(c)}" y2="-6"/><line x1="${f(2 * c)}" y1="-22" x2="${f(2 * c)}" y2="-6"/><text x="${f(c + c / 2)}" y="-22" text-anchor="middle">${f(c)}</text>
+<line x1="-30" y1="0" x2="-30" y2="${f(e)}"/><line x1="-38" y1="0" x2="-22" y2="0"/><line x1="-38" y1="${f(e)}" x2="-22" y2="${f(e)}"/><text x="-40" y="${f(e / 2 + 6)}" text-anchor="end">${f(e)}</text></g></svg>` };
 }

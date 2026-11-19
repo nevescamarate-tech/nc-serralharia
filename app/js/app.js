@@ -43,6 +43,7 @@ function descricao(trabalho, res) {
   if (trabalho.tipo === 'corrimao') return `Corrimão com ${mm(res.comprimentoTotal)} de comprimento, ${m.montagem === 'prumos' ? 'sobre prumos' : 'fixo à parede'}.`;
   if (trabalho.tipo === 'tubagem') { const n = ref => (res.acessorios.find(a => a.ref === ref) || { qtd: 0 }).qtd;
     return `Tubagem soldada DN${res.dn} (Ø${dec(res.de, 1)} × ${dec(res.esp, 1)} mm) com ${mm(res.comprimentoTotal)}, ${n('curva_inox')} curva(s), ${n('flange_inox')} flange(s) e ${n('te_inox')} tê(s).`; }
+  if (trabalho.tipo === 'escada') return `Escada reta com ${res.escada.degraus} degraus em chapa lacrimada (espelho ${dec(res.escada.espelho, 0)} mm, cobertor ${dec(res.escada.cobertor, 0)} mm), ${mm(res.largura)} de largura e ${mm(res.altura)} de desnível.`;
   if (trabalho.tipo === 'grade') return `${res.unidades > 1 ? res.unidades + ' grades fixas' : 'Grade fixa'} de ${mm(res.largura)} × ${mm(res.altura)}, em varões verticais, com patas de fixação.`;
   if (trabalho.tipo === 'telheiro') { const cb = { sandwich: 'cobertura em painel sandwich', trapezoidal: 'cobertura em chapa trapezoidal', ripado: 'ripado', nenhuma: 'sem cobertura' }[m.cobertura] || '';
     return `${+res.pendente ? 'Telheiro' : 'Pérgula'} com ${mm(res.comprimentoTotal)} × ${mm(res.largura)} e ${mm(res.altura)} de altura livre, ${cb}${m.apoio === 'parede' ? ', encostado à parede' : ''}.`; }
@@ -54,8 +55,8 @@ function descricao(trabalho, res) {
 async function novoTrabalho(obra, tipo, extra = {}) {
   const precos = await store.lerPrecos();
   const t = { id: store.novoId(), tipo, nome: extra.nome || '', medidas: { ...clone(TIPOS[tipo].def), ...(extra.medidas || {}) },
-    material: tipo === 'tubagem' ? 'inox304' : 'aco', acabamento: tipo === 'tubagem' ? 'nenhum' : tipo === 'telheiro' ? 'galvanizado' : 'pintado', cor: CORES_RAL[1].hex, corNome: CORES_RAL[1].ral, margem: precos.margem,
-    horasOficina: null, horasMontagem: tipo === 'telheiro' ? 16 : 4, semDeslocacao: obra.trabalhos.length > 0, notas: extra.notas || '', precos, alterado: Date.now() };
+    material: tipo === 'tubagem' ? 'inox304' : 'aco', acabamento: tipo === 'tubagem' ? 'nenhum' : tipo === 'telheiro' || tipo === 'escada' ? 'galvanizado' : 'pintado', cor: CORES_RAL[1].hex, corNome: CORES_RAL[1].ral, margem: precos.margem,
+    horasOficina: null, horasMontagem: tipo === 'telheiro' ? 16 : tipo === 'escada' ? 8 : 4, semDeslocacao: obra.trabalhos.length > 0, notas: extra.notas || '', precos, alterado: Date.now() };
   obra.trabalhos.push(t); obra.alterado = Date.now();
   await store.guardarObra(obra).catch(falhaGravar);
   return t;
@@ -136,7 +137,7 @@ async function ecraTrabalho(obraId, tid, sep = 'medidas') {
   const guarda = () => { sujo = true; clearTimeout(pend); pend = setTimeout(grava, 350); };
   const seps = { medidas: 'Medidas', desenho: 'Desenho', tres: '3D', custo: 'Custo' };
   ecra.innerHTML = `${topo(t.nome || TIPOS[t.tipo].nome, `#/obra/${obra.id}`)}
-<label class="campo linha-nome"><span>Nome do trabalho</span><input id="nome" value="${esc(t.nome)}" placeholder="ex.: ${{ guarda: 'varanda do 1.º andar', corrimao: 'escada interior', portao: 'entrada principal', tubagem: 'linha de água da cozinha', telheiro: 'telheiro do logradouro', grade: 'grades das janelas do rés-do-chão' }[t.tipo]}"></label>
+<label class="campo linha-nome"><span>Nome do trabalho</span><input id="nome" value="${esc(t.nome)}" placeholder="ex.: ${{ guarda: 'varanda do 1.º andar', corrimao: 'escada interior', portao: 'entrada principal', tubagem: 'linha de água da cozinha', telheiro: 'telheiro do logradouro', grade: 'grades das janelas do rés-do-chão', escada: 'escada de acesso ao terraço' }[t.tipo]}"></label>
 <nav class="seps" role="tablist">${Object.entries(seps).map(([k, n]) => `<button role="tab" data-sep="${k}" aria-selected="${k === sep}">${n}</button>`).join('')}</nav>
 <div id="avisos"></div>
 <div class="trab"><section id="p-medidas" class="painel"><form id="form" class="bloco" onsubmit="return false"></form>
@@ -287,7 +288,7 @@ async function ecraPrecos() {
 ${p.exemplo ? '<p class="faixa">Estes são valores de exemplo. Substitua-os pelos seus; ficam guardados neste aparelho.</p>' : ''}
 <form id="fp" onsubmit="return false">
 <h2>Perfis, por kg</h2><section class="bloco">${Object.entries(MATERIAIS).map(([k, m]) => lin('kg.' + k, m.nome, '€/kg')).join('')}</section>
-<h2>Chapa e vidro</h2><section class="bloco">${lin('m2.vidro', 'Vidro laminado', '€/m²')}${lin('m2.chapa_aco', 'Chapa de aço', '€/m²')}${lin('m2.chapa_inox', 'Chapa de inox', '€/m²')}${lin('m2.chapa_aluminio', 'Chapa de alumínio', '€/m²')}${lin('m2.sandwich', 'Painel sandwich de cobertura', '€/m²')}${lin('m2.trapezoidal', 'Chapa trapezoidal de cobertura', '€/m²')}${lin('m2.xps', 'Isolamento XPS 40 mm', '€/m²')}</section>
+<h2>Chapa e vidro</h2><section class="bloco">${lin('m2.vidro', 'Vidro laminado', '€/m²')}${lin('m2.chapa_aco', 'Chapa de aço', '€/m²')}${lin('m2.chapa_inox', 'Chapa de inox', '€/m²')}${lin('m2.chapa_aluminio', 'Chapa de alumínio', '€/m²')}${lin('m2.sandwich', 'Painel sandwich de cobertura', '€/m²')}${lin('m2.trapezoidal', 'Chapa trapezoidal de cobertura', '€/m²')}${lin('m2.xps', 'Isolamento XPS 40 mm', '€/m²')}${lin('m2.lacrimada', 'Chapa lacrimada', '€/m²')}</section>
 <h2>Mão de obra</h2><section class="bloco">${lin('horaOficina', 'Hora de oficina', '€/h')}${lin('horaMontagem', 'Hora de montagem', '€/h')}${lin('deslocacao', 'Deslocação', '€')}${lin('consumiveis', 'Consumíveis de oficina, sobre o material', '%')}</section>
 <h2>Acabamentos</h2><section class="bloco">${lin('acabamento.pintado', 'Pintura', '€/m²')}${lin('acabamento.lacado', 'Lacagem', '€/m²')}${lin('acabamento.galvanizado', 'Galvanização', '€/kg')}${lin('acabamento.escovado', 'Inox escovado', '€/m²')}${lin('acabamento.polido', 'Inox polido', '€/m²')}${lin('acabamento.anodizado', 'Anodização', '€/m²')}${lin('acabamento.decapado', 'Decapagem e passivação', '€/m²')}</section>
 <h2>Acessórios e ferragens</h2><section class="bloco">${Object.entries(ACESSORIOS).map(([k, a]) => lin('acessorios.' + k, a.nome, '€/' + a.un)).join('')}</section>

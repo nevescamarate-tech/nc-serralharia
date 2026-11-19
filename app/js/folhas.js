@@ -2,7 +2,7 @@
 import { esc, dec, eur, dataPT, logoSVG } from './fmt.js';
 import { MATERIAIS, acabamentoDe } from './catalogo.js';
 import { superficieM2, pesoKg } from './custo.js';
-import { listaPosicoes, aprovisionamento, notasFabrico, escalaPara, pormenorVao, pormenorPe, pormenorAlmofada } from './preparacao.js';
+import { listaPosicoes, aprovisionamento, notasFabrico, escalaPara, pormenorVao, pormenorPe, pormenorAlmofada, pormenorDegrau } from './preparacao.js';
 import { alcadoSVG, plantaSVG } from './desenho2d.js';
 import { TIPOS } from './calc.js';
 
@@ -22,7 +22,7 @@ export function descricaoMaterial(trabalho) {
 }
 
 // ---------- folhas A3 de preparação ----------
-const LETRA_TIPO = { guarda: 'G', corrimao: 'C', portao: 'P', tubagem: 'T', telheiro: 'TL', grade: 'GR' };
+const LETRA_TIPO = { guarda: 'G', corrimao: 'C', portao: 'P', tubagem: 'T', telheiro: 'TL', grade: 'GR', escada: 'E' };
 const virg = (v, c = 1) => String(Math.round(v * 10 ** c) / 10 ** c).replace('.', ',');
 
 /** Põe um SVG à escala normalizada que caiba na caixa (mm de papel). unidade = mm reais por unidade do viewBox. */
@@ -88,7 +88,7 @@ export function folhaPreparacao(obra, trabalho, res, plano, imagem3d, empresa, f
     nova('Lista de posições (continuação)', `<h3>Lista de posições (continuação)</h3>${tabelaPosicoes(posicoes.slice(i, i + RESTO))}`);
 
   // 2 — vistas e pormenores
-  const e2 = new Set(), pe = pormenorPe(res) || pormenorAlmofada(res), vao = pormenorVao(res);
+  const e2 = new Set(), pe = pormenorPe(res) || pormenorAlmofada(res) || pormenorDegrau(res), vao = pormenorVao(res);
   const alc = alcadoSVG(res, { fino: true, refs: refDe }), pla = plantaSVG(res, { fino: true });
   let corpo2;
   if (tub) corpo2 = `${vista('Isométrico', alc, 392, 150, new Set(), 'Isométrico sem escala; cotas ao eixo, em mm.')}${vista('Planta', pla, 392, 60, e2)}`;

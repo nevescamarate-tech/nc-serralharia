@@ -159,3 +159,11 @@ CAMPOS.grade = [
   P('pBarra', 'Perfil dos varões', ['tr', 'varao', 'vq', 'tq'], { av: true }),
   N('vaoMax', 'Vão livre máximo entre varões', { av: true }),
 ];
+
+CAMPOS.escada = [
+  N('desnivel', 'Desnível total (de piso acabado a piso acabado)'),
+  N('largura', 'Largura útil (entre banzos)'),
+  N('cobertor', 'Cobertor (profundidade do degrau)'),
+  N('espelhoMax', 'Espelho máximo (altura do degrau)', { av: true }),
+  P('pBanzo', 'Perfil dos banzos', ['tret', 'tq'], { av: true }),
+];
