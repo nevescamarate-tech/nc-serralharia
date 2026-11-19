@@ -2,7 +2,7 @@
 import { esc, dec, eur, dataPT, logoSVG } from './fmt.js';
 import { MATERIAIS, acabamentoDe } from './catalogo.js';
 import { superficieM2, pesoKg } from './custo.js';
-import { listaPosicoes, aprovisionamento, notasFabrico, escalaPara, pormenorVao, pormenorPe } from './preparacao.js';
+import { listaPosicoes, aprovisionamento, notasFabrico, escalaPara, pormenorVao, pormenorPe, pormenorAlmofada } from './preparacao.js';
 import { alcadoSVG, plantaSVG } from './desenho2d.js';
 import { TIPOS } from './calc.js';
 
@@ -32,6 +32,8 @@ function aEscala(svg, caixaW, caixaH) {
   const w = +m[3], h = +m[4], n = escalaPara(w, h, caixaW, caixaH);
   return { n, svg: svg.replace('<svg ', `<svg style="width:${virg(w / n, 2).replace(',', '.')}mm;height:${virg(h / n, 2).replace(',', '.')}mm" `) };
 }
+/** Verdadeiro se o desenho for mais alto do que metade da largura (não cabe bem numa faixa ao baixo). */
+function alto(svg) { const m = /viewBox="[-\d.]+ [-\d.]+ ([-\d.]+) ([-\d.]+)"/.exec(svg || ''); return !!m && +m[2] > 0.5 * +m[1]; }
 function vista(titulo, svg, caixaW, caixaH, escalas, nota = '') {
   const v = aEscala(svg, caixaW, caixaH);
   if (v.n) escalas.add(v.n);
@@ -86,7 +88,7 @@ export function folhaPreparacao(obra, trabalho, res, plano, imagem3d, empresa, f
     nova('Lista de posições (continuação)', `<h3>Lista de posições (continuação)</h3>${tabelaPosicoes(posicoes.slice(i, i + RESTO))}`);
 
   // 2 — vistas e pormenores
-  const e2 = new Set(), pe = pormenorPe(res), vao = pormenorVao(res);
+  const e2 = new Set(), pe = pormenorPe(res) || pormenorAlmofada(res), vao = pormenorVao(res);
   const alc = alcadoSVG(res, { fino: true, refs: refDe }), pla = plantaSVG(res, { fino: true });
   let corpo2;
   if (tub) corpo2 = `${vista('Isométrico', alc, 392, 150, new Set(), 'Isométrico sem escala; cotas ao eixo, em mm.')}${vista('Planta', pla, 392, 60, e2)}`;
@@ -97,9 +99,13 @@ export function folhaPreparacao(obra, trabalho, res, plano, imagem3d, empresa, f
     corpo2 = `${vista('Alçado frontal', alc, 392, 92, e2)}<div class="a3-g3">${
       vista('Alçado lateral', alcadoSVG(lat, { fino: true, refs: refsL }), 125, 92, e2, `Pendente ${virg(res.pendente)} % · topo da viga atrás a ≈ ${Math.round(res.alturaAlta)} mm.`)}${
       vista('Planta da estrutura', pla, 150, 92, e2, 'Sem a cobertura.')}${pe ? vista('Pormenor 1 — ' + pe.titulo.toLowerCase(), pe.svg, 90, 78, e2, pe.nota) : ''}</div>`;
+  } else if (alto(alc)) {   // peça alta (portão): alçado à esquerda, a toda a altura; planta e pormenores à direita
+    corpo2 = `<div class="a3-g2">${vista('Alçado', alc, 200, 212, e2)}<div>${vista('Planta', pla, 180, 45, e2)}${
+      vao ? vista('Pormenor 1 — vão tipo', vao, 180, 70, e2, 'Vão livre entre montantes e folgas do enchimento.') : ''}${
+      pe ? vista(`Pormenor ${vao ? 2 : 1} — ` + pe.titulo.toLowerCase(), pe.svg, 180, vao ? 60 : 90, e2, pe.nota) : ''}</div></div>`;
   } else corpo2 = `${vista('Alçado', alc, 392, 112, e2)}<div class="a3-g3">${vista('Planta', pla, 150, 78, e2)}${
     vao ? vista('Pormenor 1 — vão tipo', vao, 125, 78, e2, 'Vão livre entre montantes e folgas do enchimento.') : ''}${
-    pe ? vista('Pormenor 2 — ' + pe.titulo.toLowerCase(), pe.svg, 90, 70, e2, pe.nota) : ''}</div>`;
+    pe ? vista(`Pormenor ${vao ? 2 : 1} — ` + pe.titulo.toLowerCase(), pe.svg, vao ? 90 : 200, 70, e2, pe.nota) : ''}</div>`;
   nova(tub ? 'Isométrico e planta' : res.cotasLateral ? 'Alçados, planta e pormenores' : 'Alçado, planta e pormenores', corpo2, e2);
 
   // 3 — aprovisionamento e corte (com continuação se não couber)

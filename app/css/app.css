@@ -236,3 +236,6 @@ body.trancado .ecra, body.trancado .folha-fundo { visibility: hidden; }
   #fp h2 { grid-column: auto; }
   .obra-g { display: grid; grid-template-columns: minmax(360px, 460px) 1fr; gap: 28px; align-items: start; }
 }
+.a3-g2 { display: grid; grid-template-columns: 205mm 1fr; gap: 8mm; align-items: start; }
+.a3-g2 .a3-v + .a3-v { margin-top: 4mm; }
+.a3-v .a3-n { max-width: 150mm; }

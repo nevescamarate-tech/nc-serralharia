@@ -9,6 +9,7 @@ const GRUPOS = {
   varao: ['V', 'Varão'], barra: ['B', 'Barra horizontal'], lamina: ['L', 'Lâmina'], tubo: ['TB', 'Troço de tubo'],
   viga: ['VG', 'Viga'], vigap: ['VP', 'Viga de parede'], madre: ['M', 'Madre'], ripa: ['R', 'Ripa'],
   chapa: ['CH', 'Chapa de enchimento'], vidro: ['VD', 'Vidro laminado'], sandwich: ['CB', 'Painel de cobertura'], trapezoidal: ['CB', 'Chapa de cobertura'],
+  almofada: ['AL', 'Almofada quinada (planificada)'], tardoz: ['CT', 'Chapa de trás'], xps: ['IS', 'Isolamento'],
 };
 const ORDEM = Object.keys(GRUPOS);
 const grau = a => String(arred(90 - (+a || 0))).replace('.', ',') + '°';
@@ -34,7 +35,7 @@ export function listaPosicoes(res, material) {
     const k = `${p.grupo}|${p.esp}|${p.w}|${p.h}|${p.dy ? arred(p.dy) : 0}`;
     if (!juntas.has(k)) juntas.set(k, { tipo: 'painel', grupo: p.grupo, perfilId: '', perfil: painelInfo(p, mat).nome,
       L: Math.max(p.w, p.h), dim: `${Math.round(p.w)} × ${Math.round(p.h)}`, qtd: 0,
-      kgUn: painelInfo(p, mat).kg, corte: p.dy ? 'topo inclinado' : '—', itens: [] });
+      kgUn: painelInfo(p, mat).kg, corte: p.nota || (p.dy ? 'topo inclinado' : '—'), itens: [] });
     const g = juntas.get(k); g.qtd++; g.itens.push(p);
   }
   const lista = [...juntas.values()].sort((a, b) => {
@@ -121,7 +122,7 @@ const VERTICAIS = ['prumo', 'aro', 'pilar', 'travessa'];
 const vertical = p => Math.abs(p.s[2] - p.s[0]) < 1;
 /** Pormenor ampliado do primeiro vão: vão livre entre montantes e folga do enchimento. '' se não se aplicar. */
 export function pormenorVao(res) {
-  if (!res || !res.pecas.length || res.telheiro || (res.cotas || []).some(c => c.tipo === 'l')) return '';
+  if (!res || !res.pecas.length || res.telheiro || res.almofadas || (res.cotas || []).some(c => c.tipo === 'l')) return '';
   const mont = res.pecas.filter(p => VERTICAIS.includes(p.grupo) && vertical(p)).sort((a, b) => a.s[0] - b.s[0]);
   if (mont.length < 2) return '';
   const a = mont[0], b = mont.find(p => p.s[0] - a.s[0] > a.t + 20);
@@ -170,4 +171,23 @@ ${[-1, 1].map(i => `<line x1="${f(i * fu / 2)}" y1="62" x2="${f(i * fu / 2)}" y2
 ${cotaH(-a / 2, a / 2, -22, f(a))}${cotaH(x0, -x0, 122, lado)}
 <rect class="c" x="${f(x0)}" y="${f(190 - lado / 2)}" width="${lado}" height="${lado}"/><rect class="l" x="${f(-a / 2)}" y="${f(190 - a / 2)}" width="${f(a)}" height="${f(a)}"${prumo.redondo ? ` rx="${f(a / 2)}"` : ''}/>
 ${furos}${cotaH(-fu / 2, fu / 2, 190 + lado / 2 + 22, fu)}</svg>` };
+}
+
+/** Corte horizontal pela junta entre duas almofadas (escala 1:1 em mm). null se o trabalho não tiver almofadas. */
+export function pormenorAlmofada(res) {
+  const al = res && res.almofadas;
+  if (!al) return null;
+  const { relevo: r, aba, junta: j, aro: a } = al, M = Math.max(110, a + 70), f = v => String(Math.round(v * 10) / 10);
+  const pele = s => `<polyline class="ch" points="${f(s * M)},${-r} ${f(s * j / 2)},${-r} ${f(s * j / 2)},0 ${f(s * (j / 2 + aba))},0"/>`;
+  const iso = al.isolamento ? [-1, 1].map(s => `<rect class="h" x="${f(s > 0 ? a / 2 + 2 : -M)}" y="${f(Math.max(0, a - 40) / 2)}" width="${f(M - a / 2 - 2)}" height="${f(Math.min(40, a))}"/>`).join('') : '';
+  const tard = al.tardoz ? `<rect class="c" x="${-M}" y="${f(a)}" width="${2 * M}" height="1.5"/><line x1="0" y1="${f(a - 6)}" x2="0" y2="${f(a + 7)}" stroke="#111" stroke-width="2"/>
+<text class="t" x="6" y="${f(a + 14)}">rebite cego inox Ø4,8 a cada ≈ 200</text>` : '';
+  const cotaV = `<g class="q"><line x1="${-M + 12}" y1="${-r}" x2="${-M + 12}" y2="0"/><line x1="${-M + 8}" y1="${-r}" x2="${-M + 16}" y2="${-r}"/><line x1="${-M + 8}" y1="0" x2="${-M + 16}" y2="0"/><text x="${-M + 20}" y="${f(-r / 2 + 3)}">${f(r)}</text></g>`;
+  const cotaJ = `<g class="q"><line x1="${f(-j / 2)}" y1="${-r - 10}" x2="${f(j / 2)}" y2="${-r - 10}"/><text x="${f(j / 2 + 6)}" y="${-r - 7}">junta entre almofadas ${f(j)}</text></g>`;
+  return { titulo: 'Junta entre almofadas (corte horizontal)', w: 2 * M, h: a + r + 60,
+    nota: `Relevo ${f(r)} mm, aba de retorno ≈ ${aba} mm dobrada para dentro, encostada ao montante; junta de ${f(j)} mm. Chapa 2 mm. [A CONFIRMAR] raios de quinagem com a quinadeira.`,
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-M} ${-r - 26} ${2 * M} ${a + r + 60}"><style>.l{fill:#fff;stroke:#111;stroke-width:.9}.c{fill:#bbb;stroke:#111;stroke-width:.4}.ch{fill:none;stroke:#111;stroke-width:2}.q line{stroke:#1f4e9c;stroke-width:.5}.q text,.t{font-family:Helvetica,Arial,sans-serif;font-size:7px;fill:#1f4e9c}.t{fill:#111}.h{fill:url(#hz);stroke:#999;stroke-width:.4}</style>
+<defs><pattern id="hz" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" stroke="#aaa" stroke-width=".6"/></pattern></defs>
+${iso}<rect class="l" x="${f(-a / 2)}" y="0" width="${f(a)}" height="${f(a)}"/><rect class="l" x="${f(-a / 2 + 2)}" y="2" width="${f(a - 4)}" height="${f(a - 4)}"/>
+${pele(-1)}${pele(1)}${tard}${cotaV}${cotaJ}<text class="t" x="${f(-a / 2 + 4)}" y="${f(a / 2 + 2)}">montante</text><text class="t" x="${-M + 30}" y="${-r - 4}">frente</text></svg>` };
 }

@@ -32,7 +32,7 @@ function embrulho(b, U, corpo, cor = "#c0392b") {
   const m = U * 1.5, w = b.x1 - b.x0 + 2 * m, h = b.y1 - b.y0 + 2 * m;
   const sw = f(U * 0.07);
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${f(b.x0 - m)} ${f(-b.y1 - m)} ${f(w)} ${f(h)}" class="desenho" preserveAspectRatio="xMidYMid meet">` +
-    `<style>.pc{fill:#fff;stroke:#111;stroke-width:${sw}}.pn{fill:#e9eef2;stroke:#111;stroke-width:${sw}}.vd{fill:#d6ecf5;stroke:#4a7d91;stroke-width:${sw}}` +
+    `<style>.pc{fill:#fff;stroke:#111;stroke-width:${sw}}.pf{fill:#dfe5ea;fill-opacity:.8;stroke:#111;stroke-width:${sw}}.pn{fill:#e9eef2;stroke:#111;stroke-width:${sw}}.vd{fill:#d6ecf5;stroke:#4a7d91;stroke-width:${sw}}` +
     `.cota line{stroke:${cor};stroke-width:${f(U * 0.05)}}.cota text{fill:${cor};font-family:Helvetica,Arial,sans-serif}` +
     `.bl circle{fill:#fff;stroke:#1b7f3b;stroke-width:${f(U * 0.09)}}.bl line{stroke:#1b7f3b;stroke-width:${f(U * 0.06)}}.bl text{fill:#111;font-family:Helvetica,Arial,sans-serif;font-weight:bold}` +
     `.chao{stroke:#888;stroke-width:${f(U * 0.06)};stroke-dasharray:${f(U * 0.6)} ${f(U * 0.3)}}.pt{fill:#111}</style>${corpo}</svg>`;
@@ -41,16 +41,19 @@ function embrulho(b, U, corpo, cor = "#c0392b") {
 /** Alçado desenvolvido (os troços aparecem seguidos, como se a guarda fosse esticada). */
 export function alcadoSVG(res, { fino = false, refs = null, janela = null } = {}) {
   if (!res || (!res.pecas.length && !res.paineis.length)) return VAZIO;
-  const formas = [], pts = [];
+  const formas = [], pts = [], frentes = [];
   for (const p of res.paineis) {
     const [x1, y1, x2, y2] = p.s, dy = p.dy || 0;
     const q = [[x1, y1], [x2, y1 + dy], [x2, y2 + dy], [x1, y2]];
-    formas.push(pol(q, p.grupo === 'vidro' ? 'vd' : 'pn')); pts.push(...q);
+    if (p.sem2d) continue;                       // chapa de trás, isolamento: não se veem de frente
+    if (p.frente) frentes.push(pol(q, 'pf')); else formas.push(pol(q, p.grupo === 'vidro' ? 'vd' : 'pn'));
+    pts.push(...q);
   }
   for (const p of res.pecas) {
     const q = faixa(p.s[0], p.s[1], p.s[2], p.s[3], p.ts ?? p.t);
     formas.push(pol(q, 'pc')); pts.push(...q);
   }
+  formas.push(...frentes);                       // chapas da frente por cima da estrutura, meio transparentes
   const b = limites(pts);
   if (janela) { b.x0 = janela[0]; b.x1 = janela[1]; }   // pormenor: só se vê esta faixa do alçado
   const U = Math.max(b.x1 - b.x0, b.y1 - b.y0, 400) / (janela ? 55 : fino ? 85 : 40);
@@ -58,7 +61,7 @@ export function alcadoSVG(res, { fino = false, refs = null, janela = null } = {}
   if (refs) {   // um balão por referência, na primeira peça que a tem
     const vistos = new Set(); let k = 0;
     for (const p of [...res.pecas, ...res.paineis]) {
-      const ref = refs.get(p); if (!ref || vistos.has(ref)) continue; vistos.add(ref);
+      const ref = refs.get(p); if (!ref || p.sem2d || vistos.has(ref)) continue; vistos.add(ref);
       let ax, ay, bx, by;
       if (p.w !== undefined) { ax = (p.s[0] + p.s[2]) / 2; ay = (p.s[1] + p.s[3]) / 2 + (p.dy || 0) / 2; bx = ax; by = ay; }
       else {
@@ -96,9 +99,9 @@ export function plantaSVG(res, { fino = false } = {}) {
   if (!res || (!res.pecas.length && !res.paineis.length)) return VAZIO;
   const formas = [], pts = [];
   for (const p of res.paineis) {
-    if (p.plano) continue;   // cobertura: na planta taparia a estrutura
-    const x2 = p.o[0] + p.u[0] * p.w, z2 = p.o[2] + p.u[2] * p.w;
-    const q = faixa(p.o[0], -p.o[2], x2, -z2, Math.max(p.esp, 6));
+    if (p.plano || p.sem2d) continue;   // cobertura, tardoz e isolamento: na planta tapariam a estrutura
+    const lw = p.vis ? p.vis[0] : p.w, x2 = p.o[0] + p.u[0] * lw, z2 = p.o[2] + p.u[2] * lw;
+    const q = faixa(p.o[0], -p.o[2], x2, -z2, Math.max(p.e3 || p.esp, 6));
     formas.push(pol(q, p.grupo === 'vidro' ? 'vd' : 'pn')); pts.push(...q);
   }
   for (const p of res.pecas) {

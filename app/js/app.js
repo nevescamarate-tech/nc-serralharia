@@ -37,7 +37,7 @@ function contas(trabalho) {
 }
 function descricao(trabalho, res) {
   const m = trabalho.medidas, mm = v => dec(num(v, 0) / 1000) + ' m';
-  const ench = { varoes: 'varões verticais', barras: 'barras horizontais', vidro: 'vidro laminado', chapa: 'chapa', laminas: 'lâminas horizontais', nenhum: '' };
+  const ench = { varoes: 'varões verticais', barras: 'barras horizontais', vidro: 'vidro laminado', chapa: 'chapa', laminas: 'lâminas horizontais', almofadas: 'almofadas de chapa quinada', nenhum: '' };
   const e = ench[m.enchimento] ? `, com enchimento em ${ench[m.enchimento]}` : '';
   if (trabalho.tipo === 'guarda') return `Guarda com ${mm(res.comprimentoTotal)} de comprimento e ${mm(res.altura)} de altura${e}.`;
   if (trabalho.tipo === 'corrimao') return `Corrimão com ${mm(res.comprimentoTotal)} de comprimento, ${m.montagem === 'prumos' ? 'sobre prumos' : 'fixo à parede'}.`;
@@ -286,7 +286,7 @@ async function ecraPrecos() {
 ${p.exemplo ? '<p class="faixa">Estes são valores de exemplo. Substitua-os pelos seus; ficam guardados neste aparelho.</p>' : ''}
 <form id="fp" onsubmit="return false">
 <h2>Perfis, por kg</h2><section class="bloco">${Object.entries(MATERIAIS).map(([k, m]) => lin('kg.' + k, m.nome, '€/kg')).join('')}</section>
-<h2>Chapa e vidro</h2><section class="bloco">${lin('m2.vidro', 'Vidro laminado', '€/m²')}${lin('m2.chapa_aco', 'Chapa de aço', '€/m²')}${lin('m2.chapa_inox', 'Chapa de inox', '€/m²')}${lin('m2.chapa_aluminio', 'Chapa de alumínio', '€/m²')}${lin('m2.sandwich', 'Painel sandwich de cobertura', '€/m²')}${lin('m2.trapezoidal', 'Chapa trapezoidal de cobertura', '€/m²')}</section>
+<h2>Chapa e vidro</h2><section class="bloco">${lin('m2.vidro', 'Vidro laminado', '€/m²')}${lin('m2.chapa_aco', 'Chapa de aço', '€/m²')}${lin('m2.chapa_inox', 'Chapa de inox', '€/m²')}${lin('m2.chapa_aluminio', 'Chapa de alumínio', '€/m²')}${lin('m2.sandwich', 'Painel sandwich de cobertura', '€/m²')}${lin('m2.trapezoidal', 'Chapa trapezoidal de cobertura', '€/m²')}${lin('m2.xps', 'Isolamento XPS 40 mm', '€/m²')}</section>
 <h2>Mão de obra</h2><section class="bloco">${lin('horaOficina', 'Hora de oficina', '€/h')}${lin('horaMontagem', 'Hora de montagem', '€/h')}${lin('deslocacao', 'Deslocação', '€')}${lin('consumiveis', 'Consumíveis de oficina, sobre o material', '%')}</section>
 <h2>Acabamentos</h2><section class="bloco">${lin('acabamento.pintado', 'Pintura', '€/m²')}${lin('acabamento.lacado', 'Lacagem', '€/m²')}${lin('acabamento.galvanizado', 'Galvanização', '€/kg')}${lin('acabamento.escovado', 'Inox escovado', '€/m²')}${lin('acabamento.polido', 'Inox polido', '€/m²')}${lin('acabamento.anodizado', 'Anodização', '€/m²')}${lin('acabamento.decapado', 'Decapagem e passivação', '€/m²')}</section>
 <h2>Acessórios e ferragens</h2><section class="bloco">${Object.entries(ACESSORIOS).map(([k, a]) => lin('acessorios.' + k, a.nome, '€/' + a.un)).join('')}</section>

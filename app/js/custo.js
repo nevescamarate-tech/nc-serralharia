@@ -1,4 +1,4 @@
-import { PERFIS, MATERIAIS, ACESSORIOS, kgm, perimetro, acabamentoDe, painelInfo } from './catalogo.js';
+import { PERFIS, MATERIAIS, ACESSORIOS, kgm, perimetro, acabamentoDe, painelInfo, painelMetal } from './catalogo.js';
 
 const n0 = v => (Number.isFinite(+v) ? +v : 0);
 
@@ -28,13 +28,13 @@ export function listaMaterial(res, material) {
 
 /** Peso do metal (perfis e chapa), em kg. */
 export function pesoKg(res, material) {
-  return listaMaterial(res, material).reduce((s, x) => s + (!x.painel || x.painel === 'chapa' ? x.kg || 0 : 0), 0);
+  return listaMaterial(res, material).reduce((s, x) => s + (!x.painel || painelMetal(x.painel) ? x.kg || 0 : 0), 0);
 }
 /** Superfície exterior a tratar, em m². */
 export function superficieM2(res) {
   let a = 0;
   for (const p of res.pecas) a += perimetro(PERFIS[p.perfil]) * p.L / 1e6;
-  for (const p of res.paineis) if (p.grupo === 'chapa') a += 2 * p.w * p.h / 1e6;
+  for (const p of res.paineis) if (painelMetal(p.grupo)) a += 2 * p.w * p.h / 1e6;
   return a;
 }
 export function horasEstimadas(res) {

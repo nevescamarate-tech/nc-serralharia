@@ -135,15 +135,16 @@ export const ACESSORIOS = {
   perno: { nome: 'Perno de ancoragem M12 com porca e anilha', un: 'un' },
   bucha_quimica: { nome: 'Bucha química M12 (varão, porca e resina)', un: 'un' },
   parafuso_cob: { nome: 'Autoperfurante de cobertura com anilha EPDM', un: 'un' },
+  rebite: { nome: 'Rebite cego inox A2 Ø4,8', un: 'un' },
 };
 
 export const PRECOS_EXEMPLO = {
   exemplo: true,
   kg: { aco: 1.6, inox304: 5.5, inox316: 7.5, aluminio: 6.0 },
-  m2: { vidro: 95, chapa_aco: 28, chapa_inox: 95, chapa_aluminio: 45, sandwich: 24, trapezoidal: 11 },
+  m2: { vidro: 95, chapa_aco: 28, chapa_inox: 95, chapa_aluminio: 45, sandwich: 24, trapezoidal: 11, xps: 9 },
   acessorios: { sapata: 4.5, fix_lateral: 7, bucha: 0.6, tampa: 0.8, pinca_vidro: 9, suporte_parede: 5.5, curva90: 6,
     dobradica: 8, fechadura: 45, batente_chao: 12, roda: 22, carril: 14, guia_sup: 18, batente_fim: 15,
-    cremalheira: 9, motor_prep: 35, placa_base: 14, perno: 2.5, bucha_quimica: 4.5, parafuso_cob: 0.25, curva_inox: 9, flange_inox: 18, tampao_inox: 7, te_inox: 14, abracadeira_inox: 4 },
+    cremalheira: 9, motor_prep: 35, placa_base: 14, perno: 2.5, bucha_quimica: 4.5, parafuso_cob: 0.25, rebite: 0.12, curva_inox: 9, flange_inox: 18, tampao_inox: 7, te_inox: 14, abracadeira_inox: 4 },
   horaOficina: 28, horaMontagem: 30, deslocacao: 40,
   acabamento: { pintado: 12, lacado: 16, galvanizado: 0.75, escovado: 8, polido: 18, anodizado: 14, decapado: 6 },
   margem: 30, iva: 23, vara: 6000, serra: 3, materialModo: 'varas', desperdicio: 8, consumiveis: 3,
@@ -151,13 +152,17 @@ export const PRECOS_EXEMPLO = {
 
 /** Painéis: nome para as listas, peso por m² (quando não vem da espessura) e chave do preço por m². */
 export const PAINEIS = {
-  vidro: { nome: 'Vidro laminado' }, chapa: { nome: 'Chapa' },
+  vidro: { nome: 'Vidro laminado' }, chapa: { nome: 'Chapa', metal: true },
+  almofada: { nome: 'Chapa quinada (almofada)', metal: true }, tardoz: { nome: 'Chapa lisa', metal: true },
+  xps: { nome: 'Isolamento XPS', kgm2: 1.3, preco: 'xps' },
   sandwich: { nome: 'Painel sandwich de cobertura', kgm2: 10, preco: 'sandwich' },
   trapezoidal: { nome: 'Chapa trapezoidal de cobertura', kgm2: 6.5, preco: 'trapezoidal' },
 };
 /** Nome e peso (kg) de um painel de w × h mm. */
 export function painelInfo(p, material) {
   const d = PAINEIS[p.grupo] || { nome: p.grupo }, m2 = p.w * p.h / 1e6;
-  const kg = d.kgm2 ? m2 * d.kgm2 : p.grupo === 'chapa' ? m2 * p.esp / 1000 * (MATERIAIS[material] || MATERIAIS.aco).densidade : 0;
+  const kg = d.kgm2 ? m2 * d.kgm2 : d.metal ? m2 * p.esp / 1000 * (MATERIAIS[material] || MATERIAIS.aco).densidade : 0;
   return { nome: `${d.nome} ${String(p.esp).replace('.', ',')} mm`, kg, preco: d.preco || null };
 }
+/** Verdadeiro se o painel for de chapa metálica (pesa como metal e leva tratamento). */
+export const painelMetal = grupo => !!(PAINEIS[grupo] && PAINEIS[grupo].metal);

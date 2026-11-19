@@ -1,14 +1,16 @@
 import { dims, PERFIS } from '../catalogo.js';
-import { num, reparte, arred, vazio, peca, sacoAcessorios, repartirVaroes } from './util.js';
+import { num, numLivre, reparte, arred, vazio, peca, sacoAcessorios, repartirVaroes } from './util.js';
 
 export const DEF_PORTAO = {
   largura: '', altura: 1800, tipo: 'batente2', enchimento: 'varoes',
   pAro: 'tq50x2', pTravessa: 'tq40x2', pVarao: 'vq12', pLamina: 'tret80x20x2',
   vaoMax: 110, folgaLado: 15, folgaChao: 50, sobreposicao: 200,
   pilares: false, pPilar: 'tq100x3', motor: false,
+  nAlmofadas: 0, relevo: 20, tardoz: true, isolamento: true,
 };
 const perfilOu = (id, def) => (PERFIS[id] ? id : def);
 const CHUMBAR = 600, MAX_MONTANTES = 1500, FOLGA_LAMINA = 20;
+const MAX_ALMOFADA = 1000, JUNTA = 4, ABA = 18, PASSO_REBITE = 200;
 
 export function calcPortao(medidas = {}) {
   const m = { ...DEF_PORTAO, ...medidas };
@@ -41,10 +43,12 @@ export function calcPortao(medidas = {}) {
     r.ligacoes += 4;
 
     // Montantes intermédios dividem a folha em colunas.
-    const nCol = reparte(w - a, MAX_MONTANTES), passo = (w - a) / nCol;
+    const almo = m.enchimento === 'almofadas', nPedido = Math.min(40, Math.max(0, Math.round(numLivre(m.nAlmofadas))));
+    const nAl = almo ? (nPedido || reparte(w, MAX_ALMOFADA)) : 0, wa = almo ? (w - (nAl - 1) * JUNTA) / nAl : 0;
+    const nCol = almo ? nAl : reparte(w - a, MAX_MONTANTES), passo = (w - a) / nCol;
     const xs = [x0 + a];
     for (let c = 1; c < nCol; c++) {
-      const xm = x0 + a / 2 + c * passo;
+      const xm = almo ? x0 + c * (wa + JUNTA) - JUNTA / 2 : x0 + a / 2 + c * passo;
       lin('travessa', pTrav, xm, y0 + a, xm, y1 - a);
       r.ligacoes += 2;
       xs.push(xm - aT / 2, xm + aT / 2);
@@ -78,9 +82,32 @@ export function calcPortao(medidas = {}) {
           const y = ya + folga * (j + 1) + dL.a * (j + 0.5);
           lin('lamina', pLam, ca, y, cb, y, { t: dL.a, p: dL.b }); r.ligacoes += 2;
         }
+      } else if (almo) {
+        // travessas intermédias (apoio das chapas) e isolamento em cada célula do quadro
+        const [ya, yb] = linhasY[0], nH = h > 2000 ? 2 : h > 1200 ? 1 : 0, alt = (yb - ya - nH * aT) / (nH + 1);
+        for (let k = 1; k <= nH; k++) { const y = ya + k * alt + (k - 0.5) * aT; lin('travessa', pTrav, ca, y, cb, y); r.ligacoes += 2; }
+        if (m.isolamento && alt > 0) for (let k = 0; k <= nH; k++) { const y = ya + k * (alt + aT);
+          r.paineis.push({ grupo: 'xps', esp: Math.min(40, a), w: arred(livre), h: arred(alt), o: P(ca, y), u: [1, 0, 0], dy: 0, s: [ca, y, cb, y + alt], sem2d: true, sem3d: true }); }
       }
     }
-    r.cotas.push({ tipo: 'h', nivel: 1, s1: x0, s2: x1, texto: String(arred(w)).replace('.', ',') });
+    if (almo) {
+      const relevo = Math.min(60, Math.max(5, num(m.relevo, DEF_PORTAO.relevo))), dobra = 2 * (relevo + ABA);
+      for (let k = 0; k < nAl; k++) {
+        const xa = x0 + k * (wa + JUNTA);
+        // w × h é a chapa planificada (o que se corta); vis é a face que fica à vista
+        r.paineis.push({ grupo: 'almofada', esp: 2, w: arred(wa + dobra), h: arred(h + dobra), vis: [arred(wa), arred(h)], e3: relevo, frente: true,
+          nota: `quinada, relevo ${relevo}`, o: P(xa, y0, a / 2 + relevo / 2), u: [1, 0, 0], dy: 0, s: [xa, y0, xa + wa, y1] });
+        r.cotas.push({ tipo: 'h', nivel: 1, s1: xa, s2: xa + wa, texto: String(Math.round(wa)) });
+        if (m.tardoz) {
+          r.paineis.push({ grupo: 'tardoz', esp: 1.5, w: arred(w / nAl), h: arred(h), nota: 'rebitada', sem2d: true, o: P(x0 + k * w / nAl, y0, -a / 2 - 1), u: [1, 0, 0], dy: 0, s: [x0 + k * w / nAl, y0, x0 + (k + 1) * w / nAl, y1] });
+          ac.junta('rebite', Math.ceil(2 * (w / nAl + h) / PASSO_REBITE));
+        }
+        r.ligacoes += 6;
+      }
+      if (h > 3000) r.avisos.push(`Folha com ${Math.round(h)} mm de altura: as chapas passam dos 3 m comerciais; prever emenda ou chapa especial.`);
+      r.almofadas = { n: nAl, largura: arred(wa), relevo, aba: ABA, junta: JUNTA, aro: a, tardoz: !!m.tardoz, isolamento: !!m.isolamento };
+    }
+    r.cotas.push({ tipo: 'h', nivel: almo ? 2 : 1, s1: x0, s2: x1, texto: String(arred(w)).replace('.', ',') });
   }
 
   if (correr) {
@@ -97,7 +124,7 @@ export function calcPortao(medidas = {}) {
     xs.forEach((x, k) => r.pecas.push(peca('pilar', pPil, P(x, -CHUMBAR, k === 0 ? z : 0), P(x, altura, k === 0 ? z : 0), [x, -CHUMBAR, x, altura])));
     r.ligacoes += 2;
   }
-  r.cotas.push({ tipo: 'h', nivel: 2, s1: 0, s2: largura, texto: String(Math.round(largura)) });
+  r.cotas.push({ tipo: 'h', nivel: m.enchimento === 'almofadas' ? 3 : 2, s1: 0, s2: largura, texto: String(Math.round(largura)) });
   r.cotas.push({ tipo: 'v', y1: 0, y2: altura, texto: String(Math.round(altura)) });
   r.trocosPlanta.push({ a: [0, 0], b: [largura, 0], texto: String(Math.round(largura)) });
   r.acessorios = ac.lista();

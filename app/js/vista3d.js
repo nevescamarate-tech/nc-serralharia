@@ -93,8 +93,10 @@ export function criarVista(container) {
           c.position.set(...p.o).addScaledVector(u, p.w / 2).addScaledVector(w, p.h / 2).addScaledVector(n, Math.max(p.esp, 12) / 2);
           grupo.add(c); continue;
         }
-        const m = new THREE.Mesh(new THREE.BoxGeometry(p.w, p.h, p.esp), p.grupo === 'vidro' ? vidro : metal);
-        m.position.set(p.o[0] + p.u[0] * p.w / 2, p.o[1] + p.h / 2 + (p.dy || 0) / 2, p.o[2] + p.u[2] * p.w / 2);
+        if (p.sem3d) continue;
+        const pw = p.vis ? p.vis[0] : p.w, ph = p.vis ? p.vis[1] : p.h;   // face à vista, não a chapa planificada
+        const m = new THREE.Mesh(new THREE.BoxGeometry(pw, ph, p.e3 || p.esp), p.grupo === 'vidro' ? vidro : metal);
+        m.position.set(p.o[0] + p.u[0] * pw / 2, p.o[1] + ph / 2 + (p.dy || 0) / 2, p.o[2] + p.u[2] * pw / 2);
         m.rotation.order = 'YXZ';
         m.rotation.y = -Math.atan2(p.u[2], p.u[0]);
         if (p.dy) {   // troço inclinado: os lados do painel ficam a prumo (paralelogramo), não rodados
