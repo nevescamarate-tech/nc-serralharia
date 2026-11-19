@@ -103,6 +103,7 @@ async function ecraObra(id) {
 <small>${res.pecas.length ? eur(c.venda) + ' sem IVA' : 'Faltam medidas'}</small></a>`).join('') : '<p class="vazio">Sem trabalhos. Escolha o tipo para começar.</p>'}</section>
 <div class="tipos">${Object.entries(TIPOS).filter(([, t]) => !t.oculto).map(([k, t]) => `<button class="b-sec" data-tipo="${k}">+ ${t.nome}</button>`).join('')}</div>
 <div class="tipos dois"><a class="b-sec" href="#/desenho/${obra.id}">Medir num desenho (DXF)</a><a class="b-sec" href="#/articulado/${obra.id}">Ler articulado (Excel)</a></div>
+<a class="b-pri b-claude" href="#/claude/${obra.id}">Pedir solução ao Claude (foto ou descrição)</a>
 ${linhas.length ? `<section class="bloco totais"><div><span>Total sem IVA</span><strong>${eur(total)}</strong></div><div><span>Total com IVA</span><strong>${eur(total + iva)}</strong></div>
 <button class="b-pri" id="proposta">Proposta para o cliente</button></section>` : ''}
 <button class="b-sec largo" id="duplicar">Duplicar obra</button>
@@ -319,6 +320,18 @@ async function ecraDefinicoes() {
 <button class="b-pri" id="exp">Guardar cópia num ficheiro</button>
 <label class="b-sec ficheiro">Carregar cópia de um ficheiro<input type="file" id="imp" accept=".json,application/json"></label></section>`;
   ecra.insertAdjacentHTML('beforeend', `<h2>Acesso com PIN</h2><section class="bloco"><p>A app só abre com um dos PIN de acesso, e volta a pedi-lo depois de 5 minutos em segundo plano. Os PIN são fixos e iguais em todos os aparelhos; não podem ser criados nem alterados aqui. Para os trocar é preciso publicar uma versão nova da app.</p></section>`);
+  // Ligação ao Claude: a chave é escrita pelo utilizador e fica só neste aparelho (não entra na cópia de segurança)
+  const temChave = !!(await store.kv.ler('claudeChave'));
+  ecra.insertAdjacentHTML('beforeend', `<h2>Ligação ao Claude</h2><section class="bloco"><p>Com uma chave da API do Claude (Anthropic), a app propõe soluções a partir de uma fotografia ou de uma descrição, no botão «Pedir solução ao Claude» de cada obra. A chave cria-se em console.anthropic.com, numa conta sua com pagamento por utilização; cada pedido custa alguns cêntimos.</p>
+<label class="campo"><span>Chave da API (fica só neste aparelho)</span><input type="password" id="ch-claude" autocomplete="off" placeholder="${temChave ? 'já existe uma chave guardada' : 'sk-ant-…'}"></label>
+<button class="b-sec" id="ch-guardar">Guardar chave</button><button class="b-lig" id="ch-apagar" ${temChave ? '' : 'hidden'}>Apagar a chave deste aparelho</button>
+<p class="dica">A fotografia e o texto de cada pedido são enviados para a Anthropic. Quem tiver acesso a este aparelho desbloqueado pode usar a chave: guarde-a só em aparelhos seus.</p></section>`);
+  $('#ch-guardar').onclick = async () => {
+    const v = $('#ch-claude').value.trim();
+    if (v.length < 20) return aviso('Cole a chave completa.');
+    await store.kv.guardar('claudeChave', v); aviso('Chave guardada neste aparelho.'); ecraDefinicoes();
+  };
+  $('#ch-apagar').onclick = async () => { if (confirm('Apagar a chave do Claude deste aparelho?')) { await store.kv.guardar('claudeChave', null); ecraDefinicoes(); } };
   $('#emp').oninput = ev => { const k = ev.target.dataset.k; if (k) { e[k] = ev.target.value; store.guardarEmpresa(e); } };
   $('#exp').onclick = async () => {
     const a = document.createElement('a');
@@ -348,6 +361,7 @@ async function rota() {
     if (a === 'obra') await ecraObra(b);
     else if (a === 'trabalho') await ecraTrabalho(b, c, d);
     else if (a === 'desenho' || a === 'articulado') { const m = await import('./importar.js'); await (a === 'desenho' ? m.ecraDesenho : m.ecraArticulado)(b, { ecra, topo, aviso, ir, novoTrabalho, aoSair: f => { limpar = f; } }); }
+    else if (a === 'claude') { const m = await import('./assistente.js'); await m.ecraClaude(b, { ecra, topo, aviso, ir, novoTrabalho }); }
     else if (a === 'precos') await ecraPrecos();
     else if (a === 'definicoes') await ecraDefinicoes();
     else await ecraObras();
