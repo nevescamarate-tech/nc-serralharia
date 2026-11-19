@@ -9,7 +9,8 @@ const GRUPOS = {
   varao: ['V', 'Varão'], barra: ['B', 'Barra horizontal'], lamina: ['L', 'Lâmina'], tubo: ['TB', 'Troço de tubo'],
   viga: ['VG', 'Viga'], vigap: ['VP', 'Viga de parede'], madre: ['M', 'Madre'], ripa: ['R', 'Ripa'],
   chapa: ['CH', 'Chapa de enchimento'], vidro: ['VD', 'Vidro laminado'], sandwich: ['CB', 'Painel de cobertura'], trapezoidal: ['CB', 'Chapa de cobertura'],
-  banzo: ['BZ', 'Banzo'], lacrimada: ['D', 'Degrau (planificado)'],
+  base: ['B', 'Quadro de base'], topo: ['TP', 'Quadro de topo'], ombreira: ['J', 'Ombreira da porta'], padieira: ['JP', 'Padieira da porta'],
+  banzo: ['BZ', 'Banzo'], lacrimada: ['D', 'Degrau (planificado)'], piso: ['F', 'Piso em chapa lacrimada'], parede: ['W', 'Revestimento de parede'],
   almofada: ['AL', 'Almofada quinada (planificada)'], tardoz: ['CT', 'Chapa de trás'], xps: ['IS', 'Isolamento'],
 };
 const ORDEM = Object.keys(GRUPOS);
@@ -108,6 +109,8 @@ export function notasFabrico(trabalho, res) {
   ];
   if (res.telheiro) blocos.splice(4, 1, { titulo: 'Montagem', linhas: ['Pórticos (pilares e viga) soldados em oficina; madres e cobertura montadas em obra.', 'Confirmar em obra o alinhamento e o nível das fundações antes do fabrico.'] },
     { titulo: 'Estrutura', linhas: ['[A CALCULAR] Secções, placas de base, pernos, fundações e contraventamento por técnico habilitado (vento, neve e peso da cobertura).'] });
+  if (res.abrigo) blocos.splice(4, 1, { titulo: 'Montagem', linhas: ['Montar o quadro de base sobre mesa plana e medir as diagonais (diferença ≤ 3 mm).', 'Faces de fora dos tubos alinhadas com as dos pilares; fechar os topos abertos.'] },
+    { titulo: 'Estrutura', linhas: ['[A CALCULAR] Pilares, base e ligações por técnico habilitado; se o abrigo for para elevar, olhais, lingas e ensaio de carga antes do primeiro uso.'] });
   if (res.escada) blocos.splice(4, 1, { titulo: 'Montagem', linhas: ['Degraus soldados entre os banzos, com as abas para baixo; conferir o nível de cada degrau.', 'Confirmar em obra o desnível real de piso acabado a piso acabado antes do fabrico.'] },
     { titulo: 'Estrutura', linhas: ['[A CALCULAR] Banzos, degraus, chapas de apoio e fixações por técnico habilitado. Guarda da escada em trabalho à parte.'] });
   blocos.push({ titulo: 'Atenção', linhas: ['[A CONFIRMAR] Notas geradas pela app conforme o material e o acabamento; rever antes do fabrico.'] });

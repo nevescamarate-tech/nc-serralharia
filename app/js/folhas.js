@@ -22,7 +22,7 @@ export function descricaoMaterial(trabalho) {
 }
 
 // ---------- folhas A3 de preparação ----------
-const LETRA_TIPO = { guarda: 'G', corrimao: 'C', portao: 'P', tubagem: 'T', telheiro: 'TL', grade: 'GR', escada: 'E', gradeamento: 'GM' };
+const LETRA_TIPO = { guarda: 'G', corrimao: 'C', portao: 'P', tubagem: 'T', telheiro: 'TL', grade: 'GR', escada: 'E', gradeamento: 'GM', abrigo: 'AB' };
 const virg = (v, c = 1) => String(Math.round(v * 10 ** c) / 10 ** c).replace('.', ',');
 
 /** Põe um SVG à escala normalizada que caiba na caixa (mm de papel). unidade = mm reais por unidade do viewBox. */
@@ -97,7 +97,7 @@ export function folhaPreparacao(obra, trabalho, res, plano, imagem3d, empresa, f
     const lat = { ...res, paineis: [], cotas: res.cotasLateral, pontos: (res.pontos || []).filter(p => p.sl).map(p => ({ ...p, s: p.sl })),
       pecas: res.pecas.filter(p => p.sl).map(p => { const c = { ...p, s: p.sl, ts: p.tl }; refsL.set(c, refDe.get(p)); return c; }) };
     corpo2 = `${vista('Alçado frontal', alc, 392, 92, e2)}<div class="a3-g3">${
-      vista('Alçado lateral', alcadoSVG(lat, { fino: true, refs: refsL }), 125, 92, e2, `Pendente ${virg(res.pendente)} % · topo da viga atrás a ≈ ${Math.round(res.alturaAlta)} mm.`)}${
+      vista('Alçado lateral', alcadoSVG(lat, { fino: true, refs: refsL }), 125, 92, e2, `Pendente ${virg(res.pendente)} % · topo atrás a ≈ ${Math.round(res.alturaAlta)} mm.`)}${
       vista('Planta da estrutura', pla, 150, 92, e2, 'Sem a cobertura.')}${pe ? vista('Pormenor 1 — ' + pe.titulo.toLowerCase(), pe.svg, 90, 78, e2, pe.nota) : ''}</div>`;
   } else if (alto(alc)) {   // peça alta (portão): alçado à esquerda, a toda a altura; planta e pormenores à direita
     corpo2 = `<div class="a3-g2">${vista('Alçado', alc, 200, 212, e2)}<div>${vista('Planta', pla, 180, 45, e2)}${

@@ -1,11 +1,11 @@
 // Modo sem rede: guarda todos os ficheiros da app. Mudar a versão ao publicar alterações.
-const VERSAO = 'nc-v16';
+const VERSAO = 'nc-v17';
 const FICHEIROS = ['./', 'index.html', 'manifest.webmanifest', 'css/app.css', 'css/print.css',
   'img/icon.svg', 'img/icon-192.png', 'img/icon-512.png', 'img/logo-nc.svg',
   'vendor/three.module.min.js', 'vendor/OrbitControls.js',
   'js/app.js', 'js/store.js', 'js/catalogo.js', 'js/calc.js', 'js/corte.js', 'js/custo.js', 'js/desenho2d.js',
   'js/vista3d.js', 'js/formularios.js', 'js/folhas.js', 'js/fmt.js', 'js/dxf.js', 'js/articulado.js', 'js/importar.js', 'js/pin.js', 'js/acesso.js', 'js/fotos.js', 'js/preparacao.js', 'js/xlsx.js', 'js/livro.js',
-  'js/modelos/util.js', 'js/modelos/guarda.js', 'js/modelos/corrimao.js', 'js/modelos/portao.js', 'js/modelos/tubagem.js', 'js/modelos/telheiro.js', 'js/modelos/grade.js', 'js/modelos/escada.js', 'js/modelos/gradeamento.js'];
+  'js/modelos/util.js', 'js/modelos/guarda.js', 'js/modelos/corrimao.js', 'js/modelos/portao.js', 'js/modelos/tubagem.js', 'js/modelos/telheiro.js', 'js/modelos/grade.js', 'js/modelos/escada.js', 'js/modelos/gradeamento.js', 'js/modelos/abrigo.js'];
 
 self.addEventListener('install', e => e.waitUntil(caches.open(VERSAO).then(c => c.addAll(FICHEIROS.map(f => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting())));
 self.addEventListener('activate', e => e.waitUntil(

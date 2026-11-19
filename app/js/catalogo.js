@@ -156,7 +156,8 @@ export const PAINEIS = {
   vidro: { nome: 'Vidro laminado' }, chapa: { nome: 'Chapa', metal: true },
   almofada: { nome: 'Chapa quinada (almofada)', metal: true }, tardoz: { nome: 'Chapa lisa', metal: true },
   xps: { nome: 'Isolamento XPS', kgm2: 1.3, preco: 'xps' },
-  lacrimada: { nome: 'Chapa lacrimada', metal: true, preco: 'lacrimada' },
+  lacrimada: { nome: 'Chapa lacrimada', metal: true, preco: 'lacrimada' }, piso: { nome: 'Chapa lacrimada', metal: true, preco: 'lacrimada' },
+  parede: { nome: 'Chapa trapezoidal', kgm2: 6.5, preco: 'trapezoidal' },
   sandwich: { nome: 'Painel sandwich de cobertura', kgm2: 10, preco: 'sandwich' },
   trapezoidal: { nome: 'Chapa trapezoidal de cobertura', kgm2: 6.5, preco: 'trapezoidal' },
 };

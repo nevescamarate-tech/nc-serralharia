@@ -6,6 +6,7 @@ import { calcTelheiro, DEF_TELHEIRO } from './modelos/telheiro.js';
 import { calcGrade, DEF_GRADE } from './modelos/grade.js';
 import { calcEscada, DEF_ESCADA } from './modelos/escada.js';
 import { calcGradeamento, DEF_GRADEAMENTO } from './modelos/gradeamento.js';
+import { calcAbrigo, DEF_ABRIGO } from './modelos/abrigo.js';
 import { vazio } from './modelos/util.js';
 
 export const TIPOS = {
@@ -17,6 +18,7 @@ export const TIPOS = {
   grade: { nome: 'Grade de janela', calc: calcGrade, def: DEF_GRADE },
   gradeamento: { nome: 'Gradeamento de muro', calc: calcGradeamento, def: DEF_GRADEAMENTO },
   escada: { nome: 'Escada reta', calc: calcEscada, def: DEF_ESCADA },
+  abrigo: { nome: 'Abrigo em quadro', calc: calcAbrigo, def: DEF_ABRIGO },
 };
 
 /** Calcula as peças de um trabalho. Nunca lança erro: devolve avisos. */

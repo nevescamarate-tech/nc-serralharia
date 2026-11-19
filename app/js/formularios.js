@@ -183,3 +183,20 @@ CAMPOS.gradeamento = [
   N('baixo', 'Folga por baixo', { av: true, livre: true }),
   N('topo', 'Distância da travessa de cima ao topo do prumo', { av: true, livre: true }),
 ];
+
+CAMPOS.abrigo = [
+  N('comp', 'Comprimento (frente)'),
+  N('largura', 'Largura (profundidade)'),
+  N('altura', 'Altura à frente (lado alto)'),
+  N('pendente', 'Pendente da cobertura, para trás', { un: '%', livre: true }),
+  N('pes', 'Altura livre por baixo da base (0 = assente no chão)', { livre: true }),
+  { id: 'porta', rotulo: 'Com porta na frente', tipo: 'bool' },
+  N('portaL', 'Largura da porta', { se: m => m.porta }),
+  N('portaH', 'Altura da porta', { se: m => m.porta }),
+  { id: 'piso', rotulo: 'Piso em chapa lacrimada', tipo: 'bool' },
+  S('revestimento', 'Paredes', { trapezoidal: 'Chapa trapezoidal', nenhum: 'Só a estrutura' }),
+  S('cobertura', 'Cobertura', { sandwich: 'Painel sandwich', trapezoidal: 'Chapa trapezoidal', nenhuma: 'Sem cobertura' }),
+  P('pPilar', 'Perfil dos pilares', ['tq'], { av: true }),
+  P('pBase', 'Perfil do quadro de base', ['tret', 'tq'], { av: true }),
+  P('pTopo', 'Perfil do topo e das travessas', ['tq', 'tret'], { av: true }),
+];
