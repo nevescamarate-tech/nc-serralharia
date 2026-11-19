@@ -150,3 +150,12 @@ CAMPOS.telheiro = [
   N('maxMadres', 'Afastamento máximo das madres / ripas', { av: true, se: m => m.cobertura !== 'nenhuma' }),
   N('beiral', 'Beiral (saliência a toda a volta)', { av: true, livre: true }),
 ];
+
+CAMPOS.grade = [
+  N('largura', 'Largura da grade'),
+  N('altura', 'Altura da grade'),
+  N('qtd', 'Quantidade de grades iguais', { un: 'un', livre: true }),
+  P('pAro', 'Perfil do aro', ['tret', 'tq', 'barra'], { av: true }),
+  P('pBarra', 'Perfil dos varões', ['tr', 'varao', 'vq', 'tq'], { av: true }),
+  N('vaoMax', 'Vão livre máximo entre varões', { av: true }),
+];

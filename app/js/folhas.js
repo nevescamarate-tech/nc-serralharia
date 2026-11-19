@@ -22,7 +22,7 @@ export function descricaoMaterial(trabalho) {
 }
 
 // ---------- folhas A3 de preparação ----------
-const LETRA_TIPO = { guarda: 'G', corrimao: 'C', portao: 'P', tubagem: 'T', telheiro: 'TL' };
+const LETRA_TIPO = { guarda: 'G', corrimao: 'C', portao: 'P', tubagem: 'T', telheiro: 'TL', grade: 'GR' };
 const virg = (v, c = 1) => String(Math.round(v * 10 ** c) / 10 ** c).replace('.', ',');
 
 /** Põe um SVG à escala normalizada que caiba na caixa (mm de papel). unidade = mm reais por unidade do viewBox. */

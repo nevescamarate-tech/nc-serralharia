@@ -43,6 +43,7 @@ function descricao(trabalho, res) {
   if (trabalho.tipo === 'corrimao') return `Corrimão com ${mm(res.comprimentoTotal)} de comprimento, ${m.montagem === 'prumos' ? 'sobre prumos' : 'fixo à parede'}.`;
   if (trabalho.tipo === 'tubagem') { const n = ref => (res.acessorios.find(a => a.ref === ref) || { qtd: 0 }).qtd;
     return `Tubagem soldada DN${res.dn} (Ø${dec(res.de, 1)} × ${dec(res.esp, 1)} mm) com ${mm(res.comprimentoTotal)}, ${n('curva_inox')} curva(s), ${n('flange_inox')} flange(s) e ${n('te_inox')} tê(s).`; }
+  if (trabalho.tipo === 'grade') return `${res.unidades > 1 ? res.unidades + ' grades fixas' : 'Grade fixa'} de ${mm(res.largura)} × ${mm(res.altura)}, em varões verticais, com patas de fixação.`;
   if (trabalho.tipo === 'telheiro') { const cb = { sandwich: 'cobertura em painel sandwich', trapezoidal: 'cobertura em chapa trapezoidal', ripado: 'ripado', nenhuma: 'sem cobertura' }[m.cobertura] || '';
     return `${+res.pendente ? 'Telheiro' : 'Pérgula'} com ${mm(res.comprimentoTotal)} × ${mm(res.largura)} e ${mm(res.altura)} de altura livre, ${cb}${m.apoio === 'parede' ? ', encostado à parede' : ''}.`; }
   const tp = { batente1: 'de batente com 1 folha', batente2: 'de batente com 2 folhas', correr: 'de correr' }[m.tipo] || '';
@@ -135,7 +136,7 @@ async function ecraTrabalho(obraId, tid, sep = 'medidas') {
   const guarda = () => { sujo = true; clearTimeout(pend); pend = setTimeout(grava, 350); };
   const seps = { medidas: 'Medidas', desenho: 'Desenho', tres: '3D', custo: 'Custo' };
   ecra.innerHTML = `${topo(t.nome || TIPOS[t.tipo].nome, `#/obra/${obra.id}`)}
-<label class="campo linha-nome"><span>Nome do trabalho</span><input id="nome" value="${esc(t.nome)}" placeholder="ex.: ${{ guarda: 'varanda do 1.º andar', corrimao: 'escada interior', portao: 'entrada principal', tubagem: 'linha de água da cozinha', telheiro: 'telheiro do logradouro' }[t.tipo]}"></label>
+<label class="campo linha-nome"><span>Nome do trabalho</span><input id="nome" value="${esc(t.nome)}" placeholder="ex.: ${{ guarda: 'varanda do 1.º andar', corrimao: 'escada interior', portao: 'entrada principal', tubagem: 'linha de água da cozinha', telheiro: 'telheiro do logradouro', grade: 'grades das janelas do rés-do-chão' }[t.tipo]}"></label>
 <nav class="seps" role="tablist">${Object.entries(seps).map(([k, n]) => `<button role="tab" data-sep="${k}" aria-selected="${k === sep}">${n}</button>`).join('')}</nav>
 <div id="avisos"></div>
 <div class="trab"><section id="p-medidas" class="painel"><form id="form" class="bloco" onsubmit="return false"></form>
