@@ -109,9 +109,9 @@ export function verificar(trabalho, res) {
     notas.push('Vigas e madres como simplesmente apoiadas. Pilar com comprimento de encurvadura igual a 2 × a altura (sem contraventamento).', 'O vento (incluindo a sucção, que levanta a cobertura) não está considerado.');
   } else if (tipo === 'escada') {
     const q = num(v.escada, DEF_VERIF.escada) / 1000, g = 0.5 / 1000, bz = de('banzo'); if (!bz.length) return null;
-    const larg = res.largura / 2, L = res.comprimentoTotal - (res.escada.patamar || 0);
+    const larg = res.escada.central ? res.largura : res.largura / 2, L = res.escada.avanco || res.comprimentoTotal - (res.escada.patamar || 0);
     cargas.push(`Sobrecarga no lanço: ${String(num(v.escada, DEF_VERIF.escada)).replace('.', ',')} kN/m²`, 'Peso próprio considerado: 0,5 kN/m²');
-    junta(viga('Banzo', bz[0], bz[0].t, bz[0].p, (G_G * g + G_Q * q) * larg, (g + q) * larg, L, mat));
+    junta(viga(res.escada.central ? 'Viga central' : 'Banzo', bz[0], bz[0].t, bz[0].p, (G_G * g + G_Q * q) * larg, (g + q) * larg, L, mat));
     const ba = de('varao');
     if (ba.length) { cargas.push(`Carga horizontal na guarda: ${String(qG).replace('.', ',')} kN/m`);
       const xs = ba.filter(p => p.a[2] === ba[0].a[2]).map(p => p.s[0]).sort((a, b) => a - b), passoG = xs.length > 1 ? xs[1] - xs[0] : 100;

@@ -43,3 +43,29 @@ test('custo, posições, resumo e folha da escada completa', () => {
   const tx = folhaPreparacao({ id: 'o', nome: 'Obra', numero: '1694', trabalhos: [t] }, t, res, plano, '', {}).replace(/<[^>]+>/g, ' ').toLowerCase();
   for (const p of ['gradil eletrossoldado', 'longarina do patamar', 'quadro resumo', 'degrau tipo']) ok(tx.includes(p), 'falta «' + p + '»');
 });
+
+test('patamar em L (EM02): 1220 × 2370, travessas e piso a toda a largura, pilares nas duas margens', () => {
+  const r = em({ patamarLargura: 2370, patamarLado: 'esq' });
+  ok(r.escada.emL); eq(r.escada.patamarLargura, 2370);
+  ok(de(r, 'travessa').every(p => Math.abs(p.L - 2370) < 0.1));
+  const piso = r.paineis.find(p => p.plano); eq(piso.w, 1220); eq(piso.h, 2370);
+  const zs = de(r, 'pilar').map(p => Math.round(p.a[2])).sort((a, b) => a - b); perto(zs[1] - zs[0], 2370 + 50, 1);
+  ok(zs[0] < 0, 'alarga para a esquerda de quem sobe (z negativo)');
+  ok(semNaN(r));
+});
+test('patamar em L: guarda no topo a toda a largura e na frente da parte que sobra; patamar direito fica aberto no topo', () => {
+  const r = em({ patamarLargura: 2370, patamarLado: 'esq' }), atr = de(r, 'corrimao').filter(p => Math.abs(p.b[2] - p.a[2]) > 1).map(p => Math.round(p.L)).sort((a, b) => a - b);
+  eq(atr, [1150, 2370]);
+  eq(de(em(), 'corrimao').filter(p => Math.abs(p.b[2] - p.a[2]) > 1).length, 0);
+  const dir = em({ patamarLargura: 2370, patamarLado: 'dir' }); ok(de(dir, 'pilar').some(p => p.a[2] > 2000));
+});
+test('viga central: uma só viga a meio, um suporte por degrau, e a verificação carrega-a com a largura toda', async () => {
+  const { verificar } = await import('../js/verificacao.js');
+  const r = em({ estrutura: 'central', patamar: 0, guarda: 'nenhuma' }), bz = de(r, 'banzo');
+  eq(bz.length, 1); perto(bz[0].a[2], 610, 0.1); eq(de(r, 'suporte').length, 8); eq(qtd(r, 'placa_base'), 2);
+  ok(Math.max(bz[0].a[1], bz[0].b[1]) < 1620, 'a viga fica por baixo dos degraus');
+  const t = m => ({ tipo: 'escada', medidas: { desnivel: 1620, largura: 1220, cobertor: 300, ...m }, material: 'aco' });
+  const vc = verificar(t({ estrutura: 'central' }), calcEscada(t({ estrutura: 'central' }).medidas)), vb = verificar(t({}), calcEscada(t({}).medidas));
+  eq(vc.linhas[0].elemento, 'Viga central'); perto(vc.linhas[0].ratio / vb.linhas[0].ratio, 2, 0.05);
+  ok(r.avisos.some(a => /viga central/i.test(a)));
+});

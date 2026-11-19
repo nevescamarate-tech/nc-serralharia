@@ -81,13 +81,15 @@ export function folhaPreparacao(obra, trabalho, res, plano, imagem3d, empresa, f
   const vf = verificar(trabalho, res);
   const verif = vf ? `<h4>Verificação simples <span>${vf.ok ? 'passa' : 'NÃO PASSA'}</span></h4><table class="a3-t">${vf.linhas.map(l => `<tr><td>${esc(l.elemento)}<br>${esc(l.perfil)}</td><td class="n">${esc(l.esforco)}</td><td class="n"><b>${dec(l.ratio)}</b>${l.ok ? '' : ' ✗'}</td></tr>${l.sugestao ? `<tr><td colspan="3" class="av">Sugestão: ${esc(l.sugestao)}</td></tr>` : ''}`).join('')}</table>
 <p>${vf.cargas.map(esc).join(' · ')}. Aproveitamento até 1,00 passa.</p><p>${esc(vf.notas[vf.notas.length - 1])}</p>` : '';
-  const notas = resumo + verif + notasFabrico(trabalho, res).map(b => `<h4>${esc(b.titulo)}</h4>${b.linhas.map(l => `<p>${esc(l)}</p>`).join('')}`).join('') +
-    (avisos.length ? `<h4>Avisos</h4>${avisos.map(a => `<p class="av">${esc(a)}</p>`).join('')}` : '') +
+  const notas = resumo + verif + notasFabrico(trabalho, res).map(b => `<h4>${esc(b.titulo)}</h4>${b.linhas.map(l => `<p>${esc(l)}</p>`).join('')}`).join('');
+  // avisos e notas vão para a coluna da esquerda, para a coluna das notas não chegar à legenda
+  const avisosHtml = (avisos.length ? `<h4>Avisos</h4>${avisos.map(a => `<p class="av">${esc(a)}</p>`).join('')}` : '') +
     (trabalho.notas ? `<h4>Notas para a oficina</h4><p>${esc(trabalho.notas).replace(/\n/g, '<br>')}</p>` : '');
-  const e1 = new Set(), CAB = imagem3d ? 13 : 20, RESTO = 34;
+  const e1 = new Set(), CAB = imagem3d ? 12 : 20, RESTO = 34;
   const topo1 = imagem3d ? `<figure class="a3-v a3-3d"><figcaption><b>Conjunto</b> s/ escala</figcaption><img src="${imagem3d}" alt="Vista 3D"></figure>` : '';
   nova('Conjunto e lista de posições', `<div class="a3-g1"><div>${topo1}<h3>Lista de posições (peças a fabricar)</h3>${tabelaPosicoes(posicoes.slice(0, CAB))}
-<p class="a3-n"><b>Peso do metal ≈ ${dec(kg, 1)} kg</b> · superfície a tratar ≈ ${dec(superficieM2(res), 1)} m²${posicoes.length > CAB ? ' · a lista continua na folha seguinte' : ''}. Comprimentos em mm, pela ponta mais comprida; 90° = corte em esquadria.</p></div>
+<p class="a3-n"><b>Peso do metal ≈ ${dec(kg, 1)} kg</b> · superfície a tratar ≈ ${dec(superficieM2(res), 1)} m²${posicoes.length > CAB ? ' · a lista continua na folha seguinte' : ''}. Comprimentos em mm, pela ponta mais comprida; 90° = corte em esquadria.</p>
+${avisosHtml ? `<div class="a3-avisos">${avisosHtml}</div>` : ""}</div>
 <aside class="a3-notas">${notas}</aside></div>`, e1);
   for (let i = CAB; i < posicoes.length; i += RESTO)
     nova('Lista de posições (continuação)', `<h3>Lista de posições (continuação)</h3>${tabelaPosicoes(posicoes.slice(i, i + RESTO))}`);

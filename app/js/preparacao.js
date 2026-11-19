@@ -10,7 +10,7 @@ const GRUPOS = {
   viga: ['VG', 'Viga'], vigap: ['VP', 'Viga de parede'], madre: ['M', 'Madre'], ripa: ['R', 'Ripa'],
   chapa: ['CH', 'Chapa de enchimento'], vidro: ['VD', 'Vidro laminado'], sandwich: ['CB', 'Painel de cobertura'], trapezoidal: ['CB', 'Chapa de cobertura'],
   chata: ['BC', 'Barra chata de base'], longarina: ['LG', 'Longarina do patamar'], gradil: ['GR', 'Gradil'], base: ['B', 'Quadro de base'], topo: ['TP', 'Quadro de topo'], ombreira: ['J', 'Ombreira da porta'], padieira: ['JP', 'Padieira da porta'],
-  banzo: ['BZ', 'Banzo'], lacrimada: ['D', 'Degrau (planificado)'], piso: ['F', 'Piso em chapa lacrimada'], parede: ['W', 'Revestimento de parede'],
+  banzo: ['BZ', 'Banzo ou viga da escada'], suporte: ['S', 'Suporte de degrau'], lacrimada: ['D', 'Degrau (planificado)'], piso: ['F', 'Piso em chapa lacrimada'], parede: ['W', 'Revestimento de parede'],
   almofada: ['AL', 'Almofada quinada (planificada)'], tardoz: ['CT', 'Chapa de trás'], xps: ['IS', 'Isolamento'],
 };
 const ORDEM = Object.keys(GRUPOS);
