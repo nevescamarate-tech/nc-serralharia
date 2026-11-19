@@ -5,6 +5,7 @@ import { calcTubagem, DEF_TUBAGEM } from './modelos/tubagem.js';
 import { calcTelheiro, DEF_TELHEIRO } from './modelos/telheiro.js';
 import { calcGrade, DEF_GRADE } from './modelos/grade.js';
 import { calcEscada, DEF_ESCADA } from './modelos/escada.js';
+import { calcGradeamento, DEF_GRADEAMENTO } from './modelos/gradeamento.js';
 import { vazio } from './modelos/util.js';
 
 export const TIPOS = {
@@ -14,6 +15,7 @@ export const TIPOS = {
   tubagem: { nome: 'Tubagem', calc: calcTubagem, def: DEF_TUBAGEM },
   telheiro: { nome: 'Telheiro / pérgula', calc: calcTelheiro, def: DEF_TELHEIRO },
   grade: { nome: 'Grade de janela', calc: calcGrade, def: DEF_GRADE },
+  gradeamento: { nome: 'Gradeamento de muro', calc: calcGradeamento, def: DEF_GRADEAMENTO },
   escada: { nome: 'Escada reta', calc: calcEscada, def: DEF_ESCADA },
 };
 

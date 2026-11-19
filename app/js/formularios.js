@@ -167,3 +167,19 @@ CAMPOS.escada = [
   N('espelhoMax', 'Espelho máximo (altura do degrau)', { av: true }),
   P('pBanzo', 'Perfil dos banzos', ['tret', 'tq'], { av: true }),
 ];
+
+CAMPOS.gradeamento = [
+  N('comp', 'Comprimento total'),
+  N('altura', 'Altura acima do muro'),
+  S('enchimento', 'Enchimento', { varoes: 'Varões verticais', barras: 'Barras horizontais' }),
+  S('fixacao', 'Fixação dos prumos', { chumbado: 'Chumbados no muro', sapata: 'Com sapata e buchas' }),
+  N('pontas', 'Pontas dos varões acima da travessa (0 = sem pontas)', { livre: true, se: m => m.enchimento !== 'barras' }),
+  N('nBarras', 'Número de barras', { un: '', se: m => m.enchimento === 'barras' }),
+  P('pPrumo', 'Perfil dos prumos', TUBOS, { av: true }),
+  P('pTravessa', 'Perfil das travessas', TUBOS.concat('barra'), { av: true, se: m => m.enchimento !== 'barras' }),
+  P('pVarao', 'Perfil dos varões / barras', FINOS, { av: true }),
+  N('maxPrumos', 'Comprimento máximo de cada módulo', { av: true }),
+  N('vaoMax', 'Vão livre máximo entre varões', { av: true, se: m => m.enchimento !== 'barras' }),
+  N('baixo', 'Folga por baixo', { av: true, livre: true }),
+  N('topo', 'Distância da travessa de cima ao topo do prumo', { av: true, livre: true }),
+];
