@@ -6,7 +6,7 @@ const ACO = { fy: 235, E: 210000, gM: 1.0 };
 const MAT = { aco: ACO, inox304: { fy: 210, E: 200000, gM: 1.1 }, inox316: { fy: 220, E: 200000, gM: 1.1 }, aluminio: { fy: 110, E: 70000, gM: 1.1 } };
 const G_Q = 1.5, G_G = 1.35;                       // coeficientes das ações variáveis e permanentes
 export const CARGAS_GUARDA = [['0.5', '0,5 kN/m — habitação'], ['1', '1,0 kN/m — edifícios públicos e comércio'], ['3', '3,0 kN/m — locais com multidões']];
-export const DEF_VERIF = { guarda: 1, cobertura: 1, escada: 3 };
+export const DEF_VERIF = { guarda: 0.5, cobertura: 1, escada: 3 };   // guarda: habitação por omissão; escolhe-se no ecrã
 
 /** Propriedades da secção em flexão, com h = dimensão na direção da carga e b = largura. */
 export function seccao(perfilId, h, b, fy = 235) {

@@ -219,12 +219,31 @@ ${capitulos(c).map(k => `<tr class="cap"><td colspan="3">${k.n}. ${esc(k.nome)}<
 ${num('i-mg', 'Margem', t.margem, '%')}</div>
 <section class="bloco totais"><div><span>Preço de venda sem IVA</span><strong>${eur(c.venda)}</strong></div>
 <div><span>IVA ${dec(t.precos.iva, 0)}%</span><strong>${eur(c.iva)}</strong></div><div class="grande"><span>Total com IVA</span><strong>${eur(c.vendaIva)}</strong></div></section>
+<button class="b-sec" id="comparar">Comparar com outras soluções</button><div id="solucoes"></div>
 <button class="b-sec" id="excel">Exportar custo para Excel</button>
 <button class="b-sec" id="atual">Atualizar preços pela tabela atual</button>`;
     const liga = (id, k, vazioNulo, minimo = 0) => { $(id).onchange = e => { const v = e.target.value.trim().replace(',', '.'); t[k] = v === '' ? (vazioNulo ? null : 0) : (Number.isFinite(+v) && +v >= minimo ? +v : t[k]); refresca(); }; };
     liga('#i-ho', 'horasOficina', true); liga('#i-hm', 'horasMontagem'); liga('#i-mg', 'margem', false, -100);
     $('#i-desl').onchange = e => { t.semDeslocacao = !e.target.checked; refresca(); };
     $('#atual').onclick = async () => { t.precos = await store.lerPrecos(); refresca(); aviso('Preços atualizados.'); };
+    $('#comparar').onclick = async () => {
+      if (!r.res.pecas.length) return aviso('Introduza primeiro as medidas.');
+      const { compararSolucoes } = await import('./solucoes.js');
+      const lista = compararSolucoes(t), atual = lista.find(x => x.atual), caixa = $('#solucoes');
+      if (!caixa) return;
+      caixa.innerHTML = `<h3>Outras soluções para as mesmas medidas</h3><table class="tab"><tr><th>Solução</th><th class="n">kg</th><th class="n">Preço sem IVA</th><th class="n">Diferença</th><th></th></tr>
+${lista.map((s, i) => `<tr class="${s.atual ? 'cap' : ''}"><td>${esc(s.rotulo)}${s.passa === false ? ' <span class="etq">não passa na verificação</span>' : ''}</td><td class="n">${dec(s.kg, 0)}</td><td class="n">${eur(s.venda)}</td>
+<td class="n">${s.atual ? 'atual' : (atual ? (s.venda >= atual.venda ? '+' : '−') + dec(Math.abs(s.venda - atual.venda), 0) + ' €' : '')}</td><td class="n">${s.atual ? '' : `<button type="button" class="b-lig" data-usar="${i}">Usar</button>`}</td></tr>`).join('')}</table>
+<p class="dica">Mesmas medidas, margem e horas de montagem. Cada solução recalcula o material, o corte e o acabamento.</p>`;
+      caixa.onclick = e => {
+        const b = e.target.closest('[data-usar]'); if (!b) return;
+        const s = lista[+b.dataset.usar];
+        t.medidas = s.medidas; t.material = s.material; t.acabamento = s.acabamento;
+        desenharFormulario($('#form'), t.tipo, t.medidas, () => { r = contas(t); pintaAvisos(); pintaDesenho(); pintaCusto(); guarda(); });
+        refresca(true); aviso('Solução aplicada: ' + s.rotulo + '.');
+      };
+      caixa.scrollIntoView({ block: 'nearest' });
+    };
     $('#excel').onclick = async () => {
       if (!r.res.pecas.length) return aviso('Introduza primeiro as medidas.');
       const [{ criarXLSX }, { livroCusto }] = await Promise.all([import('./xlsx.js'), import('./livro.js')]);
