@@ -89,7 +89,7 @@ export function folhaPreparacao(obra, trabalho, res, plano, imagem3d, empresa, f
     nova('Lista de posições (continuação)', `<h3>Lista de posições (continuação)</h3>${tabelaPosicoes(posicoes.slice(i, i + RESTO))}`);
 
   // 2 — vistas e pormenores
-  const e2 = new Set(), pe = pormenorPe(res) || pormenorAlmofada(res) || pormenorDegrau(res) || pormenorRasgo(res), vao = pormenorVao(res);
+  const e2 = new Set(), pe = pormenorAlmofada(res) || pormenorDegrau(res) || pormenorRasgo(res) || pormenorPe(res), vao = pormenorVao(res);
   const alc = alcadoSVG(res, { fino: true, refs: refDe }), pla = plantaSVG(res, { fino: true });
   let corpo2;
   if (tub) corpo2 = `${vista('Isométrico', alc, 392, 150, new Set(), 'Isométrico sem escala; cotas ao eixo, em mm.')}${vista('Planta', pla, 392, 60, e2)}`;

@@ -9,7 +9,7 @@ const GRUPOS = {
   varao: ['V', 'Varão'], barra: ['B', 'Barra horizontal'], lamina: ['L', 'Lâmina'], tubo: ['TB', 'Troço de tubo'],
   viga: ['VG', 'Viga'], vigap: ['VP', 'Viga de parede'], madre: ['M', 'Madre'], ripa: ['R', 'Ripa'],
   chapa: ['CH', 'Chapa de enchimento'], vidro: ['VD', 'Vidro laminado'], sandwich: ['CB', 'Painel de cobertura'], trapezoidal: ['CB', 'Chapa de cobertura'],
-  chata: ['BC', 'Barra chata de base'], base: ['B', 'Quadro de base'], topo: ['TP', 'Quadro de topo'], ombreira: ['J', 'Ombreira da porta'], padieira: ['JP', 'Padieira da porta'],
+  chata: ['BC', 'Barra chata de base'], longarina: ['LG', 'Longarina do patamar'], gradil: ['GR', 'Gradil'], base: ['B', 'Quadro de base'], topo: ['TP', 'Quadro de topo'], ombreira: ['J', 'Ombreira da porta'], padieira: ['JP', 'Padieira da porta'],
   banzo: ['BZ', 'Banzo'], lacrimada: ['D', 'Degrau (planificado)'], piso: ['F', 'Piso em chapa lacrimada'], parede: ['W', 'Revestimento de parede'],
   almofada: ['AL', 'Almofada quinada (planificada)'], tardoz: ['CT', 'Chapa de trás'], xps: ['IS', 'Isolamento'],
 };
@@ -205,7 +205,7 @@ export function pormenorDegrau(res) {
   const { espelho: e, cobertor: c, n } = es, f = v => String(Math.round(v * 10) / 10), aba = 30;
   const degrau = (x, y) => `<polyline class="ch" points="${f(x)},${f(y + aba)} ${f(x)},${f(y)} ${f(x + c)},${f(y)} ${f(x + c)},${f(y + aba)}"/>`;
   return { titulo: 'Degrau tipo', w: 2 * c + 150, h: 2 * e + 110,
-    nota: `${n} espelhos de ${String(Math.round(e * 10) / 10).replace('.', ',')} mm · ${n - 1} degraus com cobertor de ${Math.round(c)} mm · inclinação ${String(es.angulo).replace('.', ',')}°. Chapa lacrimada 4 mm quinada com 2 abas de ${aba} mm, soldada aos banzos. [A CONFIRMAR] espessura e reforço conforme a largura.`,
+    nota: `${n} espelhos de ${String(Math.round(e * 10) / 10).replace('.', ',')} mm · ${n - 1} degraus com cobertor de ${Math.round(c)} mm · inclinação ${String(es.angulo).replace('.', ',')}°. ${es.gradil ? 'Degraus em gradil eletrossoldado com orla e focinho, fixos aos banzos.' : `Chapa lacrimada 4 mm quinada com 2 abas de ${aba} mm, soldada aos banzos.`} [A CONFIRMAR] espessura e reforço conforme a largura.`,
     svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-90 ${f(-e - 40)} ${f(2 * c + 150)} ${f(2 * e + 110)}"><style>.ch{fill:none;stroke:#111;stroke-width:3}.q line{stroke:#1f4e9c;stroke-width:.8}.q text{font-family:Helvetica,Arial,sans-serif;font-size:16px;fill:#1f4e9c}.b{stroke:#999;stroke-width:.8;stroke-dasharray:8 4;fill:none}</style>
 <line class="b" x1="-60" y1="${f(e + e / 2 + 60 * e / c)}" x2="${f(2 * c + 40)}" y2="${f(e / 2 - (2 * c + 40) * e / c + e)}"/>
 ${degrau(0, e)}${degrau(c, 0)}

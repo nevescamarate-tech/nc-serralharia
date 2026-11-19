@@ -164,6 +164,13 @@ CAMPOS.escada = [
   N('desnivel', 'Desnível total (de piso acabado a piso acabado)'),
   N('largura', 'Largura útil (entre banzos)'),
   N('cobertor', 'Cobertor (profundidade do degrau)'),
+  S('degrau', 'Degraus', { lacrimada: 'Chapa lacrimada quinada', gradil: 'Gradil eletrossoldado' }),
+  N('patamar', 'Patamar de chegada, comprimento (0 = sem patamar)', { livre: true }),
+  S('guarda', 'Guarda de barras verticais', { nenhuma: 'Sem guarda', um: 'De um lado', dois: 'Dos dois lados' }),
+  N('guardaAltura', 'Altura da guarda', { av: true, se: m => m.guarda !== 'nenhuma' }),
+  N('guardaPasso', 'Distância entre eixos das barras da guarda', { av: true, se: m => m.guarda !== 'nenhuma' }),
+  P('pGuarda', 'Perfil das barras da guarda', ['barra', 'vq', 'varao', 'tq'], { av: true, se: m => m.guarda !== 'nenhuma' }),
+  P('pPilar', 'Perfil dos pilares do patamar', ['tq'], { av: true, se: m => +m.patamar > 0 }),
   N('espelhoMax', 'Espelho máximo (altura do degrau)', { av: true }),
   P('pBanzo', 'Perfil dos banzos', ['tret', 'tq'], { av: true }),
 ];
