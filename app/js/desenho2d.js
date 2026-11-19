@@ -128,3 +128,34 @@ export function plantaSVG(res, { fino = false } = {}) {
   }
   return embrulho(lim, U, formas.join(''), fino ? '#1f4e9c' : undefined);
 }
+
+/**
+ * Vista de topo: o trabalho visto ao longo do seu comprimento (eixos largura × altura).
+ * Numa guarda é o corte transversal; numa escada, a vista do pé. Devolve { svg, largura } ou null.
+ */
+export function vistaTopoSVG(res, opts = {}) {
+  if (!res || !res.pecas || !res.pecas.length || (res.cotas || []).some(c => c.tipo === 'l')) return null;
+  const pecas = [], vistos = new Set(), zs = [];
+  const junta = (s, ts) => { const k = s.map(v => Math.round(v)).join(',') + '|' + Math.round(ts); if (vistos.has(k)) return; vistos.add(k); pecas.push({ s, ts, t: ts }); zs.push(s[0] - ts / 2, s[2] + ts / 2, s[0] + ts / 2, s[2] - ts / 2); };
+  for (const p of res.pecas) {
+    if (p.sl) { junta(p.sl, p.tl ?? p.t); continue; }
+    const dx = Math.abs(p.b[0] - p.a[0]), dy = Math.abs(p.b[1] - p.a[1]), dz = Math.abs(p.b[2] - p.a[2]);
+    const y0 = Math.min(p.a[1], p.b[1]), y1 = Math.max(p.a[1], p.b[1]);
+    if (dz >= dx && dz >= dy) junta([p.a[2], p.a[1], p.b[2], p.b[1]], p.t);                          // atravessada: vê-se ao comprido
+    else if (dy >= dx) junta([p.a[2], y0, p.a[2], y1], p.p);                                          // a prumo
+    else junta([p.a[2], y0 - p.t / 2, p.a[2], y1 + p.t / 2], p.p);                                    // ao comprido: vê-se de topo
+  }
+  const paineis = [];
+  for (const p of res.paineis || []) {
+    if (p.sem2d || p.v) continue;
+    const aoLargo = Math.abs(p.u[2]) > 0.5, w = p.vis ? p.vis[0] : p.w, h = p.vis ? p.vis[1] : p.h, e = Math.max(p.e3 || p.esp, 4);
+    const s = aoLargo ? [p.o[2], p.o[1], p.o[2] + w, p.o[1] + h] : [p.o[2] - e / 2, p.o[1], p.o[2] + e / 2, p.o[1] + h];
+    const k = 'p' + s.map(v => Math.round(v)).join(','); if (vistos.has(k)) continue; vistos.add(k);
+    paineis.push({ grupo: p.grupo, s, dy: 0, frente: !!p.frente }); zs.push(s[0], s[2]);
+  }
+  const z0 = Math.min(...zs), z1 = Math.max(...zs), cotas = [];
+  if (res.altura > 0) cotas.push({ tipo: 'v', y1: 0, y2: res.altura, texto: String(Math.round(res.altura)) });
+  if (z1 - z0 > 150) cotas.push({ tipo: 'h', nivel: 1, s1: z0, s2: z1, texto: String(Math.round(z1 - z0)) });
+  const pontos = (res.pontos || []).filter(p => p.p).map(p => ({ ...p, s: [p.p[2], p.p[1]] }));
+  return { svg: alcadoSVG({ ...res, pecas, paineis, cotas, pontos }, { fino: opts.fino }), largura: z1 - z0 };
+}

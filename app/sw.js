@@ -1,5 +1,5 @@
 // Modo sem rede: guarda todos os ficheiros da app. Mudar a versão ao publicar alterações.
-const VERSAO = 'nc-v22';
+const VERSAO = 'nc-v23';
 const FICHEIROS = ['./', 'index.html', 'manifest.webmanifest', 'css/app.css', 'css/print.css',
   'img/icon.svg', 'img/icon-192.png', 'img/icon-512.png', 'img/logo-nc.svg',
   'vendor/three.module.min.js', 'vendor/OrbitControls.js',

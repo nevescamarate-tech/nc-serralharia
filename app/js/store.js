@@ -1,5 +1,6 @@
 // Dados no aparelho: IndexedDB, com memória + localStorage como recurso.
 import { PRECOS_EXEMPLO } from './catalogo.js';
+import { TIPOS } from './calc.js';
 
 let db = null, nomeBD = 'nc-serralharia';
 let mem = null;   // recurso se o IndexedDB não estiver disponível
@@ -78,8 +79,14 @@ export const guardarPrecos = p => kvGuardar('precos', p);
 export async function lerEmpresa() { return (await kvLer('empresa')) || { nome: 'NC Serralharia', morada: '', nif: '', telefone: '', email: '' }; }
 export const guardarEmpresa = e => kvGuardar('empresa', e);
 
+// Anexos de uma obra: desenho DXF, articulado e as fotos dos seus trabalhos.
+const chavesAnexos = o => [`dxf:${o.id}`, `art:${o.id}`, ...(o.trabalhos || []).flatMap(t => (t.fotos || []).filter(f => f && /^[\w-]{1,40}$/.test(f.id || '')).map(f => 'foto:' + f.id))];
+const anexoBom = (chave, v) => (chave.startsWith('foto:') ? typeof v === 'string' && /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(v) : temObjeto(v));
+
 export async function exportar() {
-  const dados = { versao: 1, exportado: new Date().toISOString(), obras: await listarObras(), precos: await lerPrecos(), empresa: await lerEmpresa() };
+  const obras = await listarObras(), anexos = {};
+  for (const o of obras) for (const k of chavesAnexos(o)) { const v = await kvLer('anexo:' + k); if (v != null) anexos[k] = v; }
+  const dados = { versao: 1, exportado: new Date().toISOString(), obras, precos: await lerPrecos(), empresa: await lerEmpresa(), anexos };
   await kvGuardar('ultimaCopia', Date.now()); await kvGuardar('porCopiar', null);
   return JSON.stringify(dados, null, 1);
 }
@@ -91,12 +98,11 @@ function validar(texto) {
     return { erro: 'O ficheiro não tem o formato da NC Serralharia.' };
   if (d.versao > 1) return { erro: 'O ficheiro foi criado por uma versão mais recente da app.' };
   const idBom = v => typeof v === 'string' && /^[\w-]{1,40}$/.test(v), obj = v => v && typeof v === 'object' && !Array.isArray(v);
-  const trabalhoBom = t => obj(t) && idBom(t.id) && TIPOS_VALIDOS.includes(t.tipo) && obj(t.medidas) && obj(t.precos);
+  const trabalhoBom = t => obj(t) && idBom(t.id) && Object.prototype.hasOwnProperty.call(TIPOS, t.tipo) && obj(t.medidas) && obj(t.precos);
   if (!d.obras.every(o => obj(o) && idBom(o.id) && Array.isArray(o.trabalhos) && o.trabalhos.every(trabalhoBom)))
     return { erro: 'O ficheiro tem obras ou trabalhos incompletos.' };
   return { d };
 }
-const TIPOS_VALIDOS = ['guarda', 'corrimao', 'portao', 'tubagem'];
 const temObjeto = v => !!v && typeof v === 'object' && !Array.isArray(v);
 async function comparar(d) {
   const novas = [], atualizadas = []; let iguais = 0;
@@ -123,7 +129,12 @@ export async function aplicarImport(texto, { comPrecos = false } = {}) {
   const { d, erro } = validar(texto);
   if (erro) return { ok: false, erro };
   const c = await comparar(d);
-  for (const o of [...c.novas, ...c.atualizadas]) await guardarObra(o);
+  const anexos = temObjeto(d.anexos) ? d.anexos : {};
+  for (const o of [...c.novas, ...c.atualizadas]) {
+    await guardarObra(o);
+    // só entram os anexos desta obra, e só se tiverem a forma esperada
+    for (const k of chavesAnexos(o)) if (Object.prototype.hasOwnProperty.call(anexos, k) && anexoBom(k, anexos[k])) await kvGuardar('anexo:' + k, anexos[k]);
+  }
   if (comPrecos) {
     if (temObjeto(d.precos)) await guardarPrecos(d.precos);
     if (temObjeto(d.empresa)) await guardarEmpresa(d.empresa);
@@ -138,7 +149,7 @@ export async function diasSemCopia() {
   return desde ? Math.floor((Date.now() - desde) / 864e5) : 0;
 }
 
-/** Anexos de uma obra (desenho DXF, articulado). Ficam só neste aparelho e não entram na cópia de segurança. */
+/** Anexos de uma obra (desenho DXF, articulado, fotos). Entram na cópia de segurança. */
 export const guardarAnexo = (chave, valor) => kvGuardar('anexo:' + chave, valor);
 export const lerAnexo = chave => kvLer('anexo:' + chave);
 

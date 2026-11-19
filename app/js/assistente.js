@@ -58,8 +58,8 @@ ${r.observacoes ? `<h3>Observações</h3><section class="bloco"><p>${esc(r.obser
     caixa.onclick = async ev => {
       const b = ev.target.closest('[data-criar]'); if (!b) return;
       const s = todas[+b.dataset.criar]; b.disabled = true;
-      const notas = [texto, r.aConfirmar.length ? 'A confirmar no local: ' + r.aConfirmar.join('; ') : '', r.observacoes].filter(Boolean).join('\n');
-      const t = await novoTrabalho(obra, s.tipo, { nome: s.nome, notas, medidas: s.medidas });
+      const notas = [texto, r.observacoes].filter(Boolean).join('\n');
+      const t = await novoTrabalho(obra, s.tipo, { nome: s.nome, notas, confirmar: r.aConfirmar.join('\n'), medidas: s.medidas });
       if (foto) {
         const id = store.novoId();
         try { await store.guardarAnexo('foto:' + id, foto); t.fotos = [{ id, legenda: 'Fotografia enviada ao Claude' }]; await store.guardarObra(obra); } catch (e) { /* sem espaço: o trabalho fica sem a foto */ }

@@ -32,3 +32,11 @@ test('proposta usa o IVA de cada trabalho, não a tabela atual', () => {
   const t = texto(folhaProposta(obra, l, {}, PRECOS_EXEMPLO));
   ok(t.includes('1 060,00'), 'total com IVA de 6%'); ok(t.includes('iva 6%'));
 });
+
+test('pontos a confirmar do trabalho saem na folha, um por linha, escapados; a folha tem corte A-A', () => {
+  const t = { ...trabalho, confirmar: 'Tipo de suporte para as buchas\n\n  Altura <b>final</b> do pavimento ' };
+  const res = calcular(t), html = folhaPreparacao(obra, t, res, planoCorte(res.pecas), '', {}), tx = texto(html);
+  ok(tx.includes('antes de cortar — pontos a confirmar')); ok(tx.includes('[a confirmar] tipo de suporte para as buchas')); ok(tx.includes('[a confirmar] altura'));
+  ok(!html.includes('<b>final</b>')); ok(tx.includes('corte a-a'));
+  ok(!texto(folhaPreparacao(obra, trabalho, res, planoCorte(res.pecas), '', {})).includes('antes de cortar — pontos a confirmar'));
+});

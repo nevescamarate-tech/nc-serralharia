@@ -87,3 +87,45 @@ test('importar com preços: só substitui a tabela quando pedido', async () => {
   eq((await store.lerPrecos()).kg.aco, 3); eq((await store.lerEmpresa()).morada, 'Rua B');
   await store.guardarPrecos(null); await store.guardarEmpresa(null);
 });
+
+// --- cópia de segurança com os tipos novos e com os anexos ---
+const trab = (id, tipo, fotos) => ({ id, tipo, nome: 'T', medidas: {}, precos: {}, ...(fotos ? { fotos } : {}) });
+test('a cópia de segurança aceita todos os tipos de trabalho da app, incluindo os novos', async () => {
+  await limpo();
+  const { TIPOS } = await import('../js/calc.js');
+  const o = { ...obra('n', 'Novos', 5), trabalhos: Object.keys(TIPOS).map((t, i) => trab('t' + i, t)) };
+  const r = await store.aplicarImport(pacote([o]));
+  eq(r.ok, true); eq((await store.lerObra('n')).trabalhos.length, Object.keys(TIPOS).length);
+  eq((await store.aplicarImport(pacote([{ ...obra('m', 'M', 5), trabalhos: [trab('x', 'foguetao')] }]))).ok, false);
+});
+test('fotos, desenho e articulado vão na cópia e voltam ao carregar', async () => {
+  await limpo();
+  const FOTO = 'data:image/jpeg;base64,/9j/AAAA';
+  await store.guardarObra({ ...obra('a', 'A', 5), trabalhos: [trab('t1', 'guarda', [{ id: 'f1', legenda: 'canto' }])] });
+  await store.guardarAnexo('foto:f1', FOTO); await store.guardarAnexo('dxf:a', { nome: 'p.dxf', texto: '0\nEOF', fator: 1 }); await store.guardarAnexo('art:a', { linhas: [] });
+  const txt = await store.exportar(), d = JSON.parse(txt);
+  eq(d.anexos['foto:f1'], FOTO); eq(d.anexos['dxf:a'].nome, 'p.dxf'); ok(d.anexos['art:a']);
+  await store.apagarObra('a'); eq(await store.lerAnexo('foto:f1'), undefined);
+  eq((await store.aplicarImport(txt)).novas, 1);
+  eq(await store.lerAnexo('foto:f1'), FOTO); eq((await store.lerAnexo('dxf:a')).nome, 'p.dxf');
+  await store.apagarObra('a');
+});
+test('anexos estranhos numa cópia são ignorados: outra obra, chave inválida, foto que não é imagem', async () => {
+  await limpo();
+  const o = { ...obra('a', 'A', 5), trabalhos: [trab('t1', 'guarda', [{ id: 'f1', legenda: '' }, { id: 'f2', legenda: '' }])] };
+  const txt = pacote([o], { anexos: { 'foto:f1': 'data:text/html;base64,AAAA', 'foto:f2': 'data:image/png;base64,AAAA', 'foto:zz': 'data:image/png;base64,AAAA', 'dxf:outra': { nome: 'x' }, 'precos': { kg: {} }, 'tentativas': null, 'dxf:a': 'texto' } });
+  eq((await store.aplicarImport(txt)).ok, true);
+  eq(await store.lerAnexo('foto:f1'), undefined); eq(await store.lerAnexo('foto:f2'), 'data:image/png;base64,AAAA');
+  eq(await store.lerAnexo('foto:zz'), undefined); eq(await store.lerAnexo('dxf:outra'), undefined); eq(await store.lerAnexo('dxf:a'), undefined);
+  eq((await store.aplicarImport(pacote([obra('b', 'B', 1)], { anexos: [1, 2] }))).ok, true);
+  await store.apagarObra('a'); await store.apagarObra('b');
+});
+test('uma obra que já está em dia no aparelho não vê as fotos trocadas pelas do ficheiro', async () => {
+  await limpo();
+  await store.guardarObra({ ...obra('a', 'A', 50), trabalhos: [trab('t1', 'guarda', [{ id: 'f1', legenda: '' }])] });
+  await store.guardarAnexo('foto:f1', 'data:image/png;base64,MINHA');
+  const antiga = { ...obra('a', 'A', 10), trabalhos: [trab('t1', 'guarda', [{ id: 'f1', legenda: '' }])] };
+  await store.aplicarImport(pacote([antiga], { anexos: { 'foto:f1': 'data:image/png;base64,OUTRA' } }));
+  eq(await store.lerAnexo('foto:f1'), 'data:image/png;base64,MINHA');
+  await store.apagarObra('a');
+});

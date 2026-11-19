@@ -1,5 +1,5 @@
 // Fotos dos trabalhos: reduzidas antes de guardar, para não encher o aparelho.
-// Ficam só neste aparelho (não entram na cópia de segurança).
+// Entram na cópia de segurança, junto com as obras.
 import { guardarAnexo, lerAnexo, novoId } from './store.js';
 
 export const MAX_FOTOS = 12;

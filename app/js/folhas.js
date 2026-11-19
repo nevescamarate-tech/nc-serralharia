@@ -3,7 +3,7 @@ import { esc, dec, eur, dataPT, logoSVG } from './fmt.js';
 import { MATERIAIS, acabamentoDe } from './catalogo.js';
 import { superficieM2, pesoKg } from './custo.js';
 import { listaPosicoes, aprovisionamento, notasFabrico, escalaPara, pormenorVao, pormenorPe, pormenorAlmofada, pormenorDegrau, pormenorRasgo, quadroResumo, sequenciaFabrico } from './preparacao.js';
-import { alcadoSVG, plantaSVG } from './desenho2d.js';
+import { alcadoSVG, plantaSVG, vistaTopoSVG } from './desenho2d.js';
 import { TIPOS } from './calc.js';
 import { verificar } from './verificacao.js';
 
@@ -83,7 +83,9 @@ export function folhaPreparacao(obra, trabalho, res, plano, imagem3d, empresa, f
 <p>${vf.cargas.map(esc).join(' · ')}. Aproveitamento até 1,00 passa.</p><p>${esc(vf.notas[vf.notas.length - 1])}</p>` : '';
   const notas = resumo + verif + notasFabrico(trabalho, res).map(b => `<h4>${esc(b.titulo)}</h4>${b.linhas.map(l => `<p>${esc(l)}</p>`).join('')}`).join('');
   // avisos e notas vão para a coluna da esquerda, para a coluna das notas não chegar à legenda
-  const avisosHtml = (avisos.length ? `<h4>Avisos</h4>${avisos.map(a => `<p class="av">${esc(a)}</p>`).join('')}` : '') +
+  const porConfirmar = String(trabalho.confirmar || '').split('\n').map(l => l.trim()).filter(Boolean).slice(0, 12);
+  const avisosHtml = (porConfirmar.length ? `<h4>Antes de cortar — pontos a confirmar</h4>${porConfirmar.map(l => `<p class="av">[A CONFIRMAR] ${esc(l)}</p>`).join('')}` : '') +
+    (avisos.length ? `<h4>Avisos</h4>${avisos.map(a => `<p class="av">${esc(a)}</p>`).join('')}` : '') +
     (trabalho.notas ? `<h4>Notas para a oficina</h4><p>${esc(trabalho.notas).replace(/\n/g, '<br>')}</p>` : '');
   const e1 = new Set(), CAB = imagem3d ? 12 : 20, RESTO = 34;
   const topo1 = imagem3d ? `<figure class="a3-v a3-3d"><figcaption><b>Conjunto</b> s/ escala</figcaption><img src="${imagem3d}" alt="Vista 3D"></figure>` : '';
@@ -97,6 +99,7 @@ ${avisosHtml ? `<div class="a3-avisos">${avisosHtml}</div>` : ""}</div>
   // 2 — vistas e pormenores
   const e2 = new Set(), pe = pormenorAlmofada(res) || pormenorDegrau(res) || pormenorRasgo(res) || pormenorPe(res), vao = pormenorVao(res);
   const alc = alcadoSVG(res, { fino: true, refs: refDe }), pla = plantaSVG(res, { fino: true });
+  const topo = tub || res.cotasLateral ? null : vistaTopoSVG(res, { fino: true });
   let corpo2;
   if (tub) corpo2 = `${vista('Isométrico', alc, 392, 150, new Set(), 'Isométrico sem escala; cotas ao eixo, em mm.')}${vista('Planta', pla, 392, 60, e2)}`;
   else if (res.cotasLateral) {   // telheiro: alçado frontal, lateral e planta
@@ -106,13 +109,15 @@ ${avisosHtml ? `<div class="a3-avisos">${avisosHtml}</div>` : ""}</div>
     corpo2 = `${vista('Alçado frontal', alc, 392, 92, e2)}<div class="a3-g3">${
       vista('Alçado lateral', alcadoSVG(lat, { fino: true, refs: refsL }), 125, 92, e2, `Pendente ${virg(res.pendente)} % · topo atrás a ≈ ${Math.round(res.alturaAlta)} mm.`)}${
       vista('Planta da estrutura', pla, 150, 92, e2, 'Sem a cobertura.')}${pe ? vista('Pormenor 1 — ' + pe.titulo.toLowerCase(), pe.svg, 90, 78, e2, pe.nota) : ''}</div>`;
-  } else if (alto(alc)) {   // peça alta (portão): alçado à esquerda, a toda a altura; planta e pormenores à direita
-    corpo2 = `<div class="a3-g2">${vista('Alçado', alc, 200, 212, e2)}<div>${vista('Planta', pla, 180, 45, e2)}${
+  } else if (alto(alc)) {   // peça alta (portão, escada): alçado à esquerda, a toda a altura; o resto à direita
+    const frente = res.escada && topo ? vista('Vista frontal (do pé da escada)', topo.svg, 180, 62, e2) : '';
+    corpo2 = `<div class="a3-g2">${vista('Alçado', alc, 200, 212, e2)}<div>${vista('Planta', pla, 180, frente ? 38 : 45, e2)}${frente}${
       vao ? vista('Pormenor 1 — vão tipo', vao, 180, 70, e2, 'Vão livre entre montantes e folgas do enchimento.') : ''}${
-      pe ? vista(`Pormenor ${vao ? 2 : 1} — ` + pe.titulo.toLowerCase(), pe.svg, 180, vao ? 60 : 90, e2, pe.nota) : ''}</div></div>`;
-  } else corpo2 = `${vista('Alçado', alc, 392, 112, e2)}<div class="a3-g3">${vista('Planta', pla, 150, 78, e2)}${
-    vao ? vista('Pormenor 1 — vão tipo', vao, 125, 78, e2, 'Vão livre entre montantes e folgas do enchimento.') : ''}${
-    pe ? vista(`Pormenor ${vao ? 2 : 1} — ` + pe.titulo.toLowerCase(), pe.svg, vao ? 90 : 200, 70, e2, pe.nota) : ''}</div>`;
+      pe ? vista(`Pormenor ${vao ? 2 : 1} — ` + pe.titulo.toLowerCase(), pe.svg, 180, vao || frente ? 55 : 90, e2, pe.nota) : ''}</div></div>`;
+  } else corpo2 = `${vista('Alçado', alc, 392, 112, e2)}<div class="a3-g3">${vista('Planta', pla, topo ? 130 : 150, 78, e2)}${
+    topo ? vista(topo.largura < 400 ? 'Corte A-A' : 'Vista lateral', topo.svg, 40, 78, e2) : ''}${
+    vao ? vista('Pormenor 1 — vão tipo', vao, topo ? 110 : 125, 78, e2, 'Vão livre entre montantes e folgas do enchimento.') : ''}${
+    pe ? vista(`Pormenor ${vao ? 2 : 1} — ` + pe.titulo.toLowerCase(), pe.svg, vao ? 80 : 180, 70, e2, pe.nota) : ''}</div>`;
   nova(tub ? 'Isométrico e planta' : res.cotasLateral ? 'Alçados, planta e pormenores' : 'Alçado, planta e pormenores', corpo2, e2);
 
   // 3 — aprovisionamento e corte (com continuação se não couber)

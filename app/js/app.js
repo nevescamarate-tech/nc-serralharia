@@ -60,7 +60,7 @@ async function novoTrabalho(obra, tipo, extra = {}) {
   const precos = await store.lerPrecos();
   const t = { id: store.novoId(), tipo, nome: extra.nome || '', medidas: { ...clone(TIPOS[tipo].def), ...(extra.medidas || {}) },
     material: tipo === 'tubagem' ? 'inox304' : 'aco', acabamento: tipo === 'tubagem' ? 'nenhum' : tipo === 'telheiro' || tipo === 'escada' ? 'galvanizado' : 'pintado', cor: CORES_RAL[1].hex, corNome: CORES_RAL[1].ral, margem: precos.margem,
-    horasOficina: null, horasMontagem: tipo === 'telheiro' ? 16 : tipo === 'escada' ? 8 : 4, semDeslocacao: obra.trabalhos.length > 0, notas: extra.notas || '', precos, alterado: Date.now() };
+    horasOficina: null, horasMontagem: tipo === 'telheiro' ? 16 : tipo === 'escada' ? 8 : 4, semDeslocacao: obra.trabalhos.length > 0, notas: extra.notas || '', confirmar: extra.confirmar || '', precos, alterado: Date.now() };
   obra.trabalhos.push(t); obra.alterado = Date.now();
   await store.guardarObra(obra).catch(falhaGravar);
   return t;
@@ -147,6 +147,7 @@ async function ecraTrabalho(obraId, tid, sep = 'medidas') {
 <div id="avisos"></div>
 <div class="trab"><section id="p-medidas" class="painel"><form id="form" class="bloco" onsubmit="return false"></form>
 <label class="campo notas"><span>Notas para a oficina</span><textarea id="notas" rows="3">${esc(t.notas)}</textarea></label>
+<label class="campo notas"><span>Antes de cortar: pontos a confirmar (um por linha)</span><textarea id="confirmar" rows="3" placeholder="ex.: tipo de suporte para as buchas">${esc(t.confirmar || "")}</textarea></label>
 <h3>Fotos</h3><div id="fotos" class="fotos"></div>
 <label class="b-sec ficheiro">+ Juntar fotos<input type="file" id="f-foto" accept="image/*" multiple></label>
 <button class="b-per" id="apagar-t">Apagar este trabalho</button></section>
@@ -248,6 +249,7 @@ ${num('i-mg', 'Margem', t.margem, '%')}</div>
   ecra.querySelectorAll('.seps button').forEach(b => b.onclick = () => mudaSep(b.dataset.sep));
   $('#notas').oninput = e => { t.notas = e.target.value; guarda(); };
   $('#rev').oninput = e => { t.rev = e.target.value.trim(); guarda(); };
+  $('#confirmar').oninput = e => { t.confirmar = e.target.value; guarda(); };
   // fotos
   if (!Array.isArray(t.fotos)) t.fotos = [];
   async function pintaFotos() {
@@ -338,7 +340,7 @@ async function ecraDefinicoes() {
   const campo = (k, rot) => `<label class="campo"><span>${rot}</span><input data-k="${k}" value="${esc(e[k])}"></label>`;
   ecra.innerHTML = `${topo('Definições', '#/')}
 <h2>Dados para as folhas</h2><section class="bloco" id="emp">${campo('morada', 'Morada')}${campo('telefone', 'Telefone')}${campo('email', 'E-mail')}${campo('nif', 'NIF')}${campo('desenhou', 'Desenhou (nome nas folhas de preparação)')}</section>
-<h2>Cópia de segurança</h2><section class="bloco"><p>As obras ficam guardadas só neste aparelho. Guarde uma cópia com regularidade; o mesmo ficheiro serve para passar as obras para outro aparelho.</p>
+<h2>Cópia de segurança</h2><section class="bloco"><p>As obras ficam guardadas só neste aparelho. Guarde uma cópia com regularidade; o mesmo ficheiro serve para passar as obras para outro aparelho. A cópia leva também as fotos, os desenhos e os articulados.</p>
 <button class="b-pri" id="exp">Guardar cópia num ficheiro</button>
 <label class="b-sec ficheiro">Carregar cópia de um ficheiro<input type="file" id="imp" accept=".json,application/json"></label></section>`;
   ecra.insertAdjacentHTML('beforeend', `<h2>Acesso com PIN</h2><section class="bloco"><p>A app só abre com um dos PIN de acesso, e volta a pedi-lo depois de 5 minutos em segundo plano. Os PIN são fixos e iguais em todos os aparelhos; não podem ser criados nem alterados aqui. Para os trocar é preciso publicar uma versão nova da app.</p></section>`);
