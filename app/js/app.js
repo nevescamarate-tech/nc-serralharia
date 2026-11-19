@@ -9,6 +9,7 @@ import { folhaPreparacao, folhaProposta, descricaoMaterial } from './folhas.js';
 import { PERFIS, MATERIAIS, CORES_RAL, ACESSORIOS, PAINEIS, acabamentoDe } from './catalogo.js';
 import { esc, dec, eur, dataPT, logoSVG } from './fmt.js';
 import { num } from './modelos/util.js';
+import { verificar, CARGAS_GUARDA, DEF_VERIF } from './verificacao.js';
 import { temPin, quemE, esperaSegundos, registarFalha, limparFalhas } from './pin.js';
 import { guardarFoto, lerFoto, apagarFotos, copiarFotos, MAX_FOTOS } from './fotos.js';
 
@@ -150,6 +151,7 @@ async function ecraTrabalho(obraId, tid, sep = 'medidas') {
 <label class="b-sec ficheiro">+ Juntar fotos<input type="file" id="f-foto" accept="image/*" multiple></label>
 <button class="b-per" id="apagar-t">Apagar este trabalho</button></section>
 <section id="p-desenho" class="painel"><h3>${t.tipo === 'tubagem' ? 'Isométrico' : 'Alçado'}</h3><div class="des" id="alcado"></div><h3>Planta</h3><div class="des" id="planta"></div>
+<div id="verif"></div>
 <label class="campo notas"><span>Revisão do desenho</span><input id="rev" value="${esc(t.rev || "00")}" maxlength="4" style="max-width:120px"></label>
 <button class="b-pri" id="prep">Preparação para a oficina (folhas A3)</button></section>
 <section id="p-tres" class="painel"><div id="tres" class="tres"></div><button class="b-lig" id="centrar">Centrar vista</button><div class="bloco" id="acab"></div></section>
@@ -160,7 +162,27 @@ async function ecraTrabalho(obraId, tid, sep = 'medidas') {
     if (r.c.semPreco.length) l.push('Sem preço na tabela: ' + r.c.semPreco.map(x => (ACESSORIOS[x] || MATERIAIS[x] || PAINEIS[x] || {}).nome || x).join(', ') + '.');
     $('#avisos').innerHTML = l.map(a => `<p class="alerta">${esc(a)}</p>`).join('');
   }
-  function pintaDesenho() { $('#alcado').innerHTML = alcadoSVG(r.res); $('#planta').innerHTML = plantaSVG(r.res); }
+  function pintaVerif() {
+    const caixa = $('#verif'); if (!caixa) return;
+    const v = verificar(t, r.res);
+    if (!v) { caixa.innerHTML = ''; return; }
+    const vf = { ...DEF_VERIF, ...(t.verif || {}) }, guardaLike = ['guarda', 'gradeamento', 'guardamuro'].includes(t.tipo) || (t.tipo === 'escada' && r.res.escada.guardas);
+    const campoG = guardaLike ? `<label class="campo"><span>Carga horizontal no corrimão</span><select data-vf="guarda">${CARGAS_GUARDA.map(([k, n]) => `<option value="${k}" ${+k === +vf.guarda ? 'selected' : ''}>${n}</option>`).join('')}</select></label>` : '';
+    const campoN = (k, rot) => `<label class="campo"><span>${rot}</span><span class="entrada"><input type="text" inputmode="decimal" data-vf="${k}" value="${esc(String(vf[k]).replace('.', ','))}"><i>kN/m²</i></span></label>`;
+    caixa.innerHTML = `<h3>Verificação simples <span class="etq ${v.ok ? 'neutra' : ''}">${v.ok ? 'passa' : 'não passa'}</span></h3>
+<section class="bloco">${campoG}${t.tipo === 'telheiro' ? campoN('cobertura', 'Sobrecarga na cobertura (neve ou uso)') : ''}${t.tipo === 'escada' ? campoN('escada', 'Sobrecarga no lanço') : ''}</section>
+<table class="tab"><tr><th>Peça</th><th>Perfil</th><th class="n">Esforço</th><th class="n">Aproveit.</th><th class="n">Flecha</th></tr>
+${v.linhas.map(l => `<tr><td>${esc(l.elemento)}</td><td>${esc(l.perfil)}</td><td class="n">${esc(l.esforco)}</td><td class="n"><strong class="${l.ok ? '' : 'mau'}">${dec(l.ratio)}</strong></td><td class="n">${l.flecha === undefined ? '—' : `<span class="${l.flechaOk ? '' : 'mau'}">${dec(l.flecha, 1)} / ${dec(l.limite, 1)} mm</span>`}</td></tr>
+${l.sugestao ? `<tr><td colspan="5" class="alerta">Não chega. Sugestão: ${esc(l.sugestao)}.</td></tr>` : ''}`).join('')}</table>
+<p class="dica">Aproveitamento até 1,00 passa. ${v.notas.map(esc).join(' ')}</p>`;
+    caixa.onchange = e => {
+      const k = e.target.dataset.vf; if (!k) return;
+      const n = +String(e.target.value).replace(',', '.');
+      if (!(n > 0) || n > 50) { aviso('Valor inválido.'); return pintaVerif(); }
+      t.verif = { ...(t.verif || {}), [k]: n }; pintaVerif(); guarda();
+    };
+  }
+  function pintaDesenho() { $('#alcado').innerHTML = alcadoSVG(r.res); $('#planta').innerHTML = plantaSVG(r.res); pintaVerif(); }
   function pintaAcab() {
     const mat = MATERIAIS[t.material], ac = acabamentoDe(t.material, t.acabamento);
     $('#acab').innerHTML = `<label class="campo"><span>Material</span><select id="s-mat">${Object.entries(MATERIAIS).map(([k, m]) => `<option value="${k}" ${k === t.material ? 'selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></label>

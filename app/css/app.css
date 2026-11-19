@@ -241,3 +241,4 @@ body.trancado .ecra, body.trancado .folha-fundo { visibility: hidden; }
 .a3-v .a3-n { max-width: 150mm; }
 .a3-seq { margin: 0; padding-left: 4.5mm; } .a3-seq li { margin-bottom: .8mm; }
 .b-claude { display: block; text-decoration: none; margin-top: 12px; } .c-mini { max-width: 100%; max-height: 260px; border-radius: 8px; border: 1px solid var(--linha); } .proposta { margin-bottom: 12px; grid-template-columns: 1fr !important; } .lista-s { margin: 0; padding-left: 18px; grid-column: 1 / -1; } button[hidden] { display: none; }
+.mau { color: var(--perigo); } #verif .tab { margin-top: 10px; }

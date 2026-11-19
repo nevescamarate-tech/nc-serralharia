@@ -5,6 +5,7 @@ import { superficieM2, pesoKg } from './custo.js';
 import { listaPosicoes, aprovisionamento, notasFabrico, escalaPara, pormenorVao, pormenorPe, pormenorAlmofada, pormenorDegrau, pormenorRasgo, quadroResumo, sequenciaFabrico } from './preparacao.js';
 import { alcadoSVG, plantaSVG } from './desenho2d.js';
 import { TIPOS } from './calc.js';
+import { verificar } from './verificacao.js';
 
 function cabecalho(titulo, obra, empresa) {
   const e = empresa || {};
@@ -77,7 +78,10 @@ export function folhaPreparacao(obra, trabalho, res, plano, imagem3d, empresa, f
   const kg = pesoKg(res, trabalho.material);
   const avisos = [...res.avisos, ...plano.avisos];
   const resumo = `<h4>Quadro resumo</h4><table class="a3-t">${quadroResumo(trabalho, res).map(([a, b]) => `<tr><td>${esc(a)}</td><td class="n"><b>${esc(b)}</b></td></tr>`).join('')}</table>`;
-  const notas = resumo + notasFabrico(trabalho, res).map(b => `<h4>${esc(b.titulo)}</h4>${b.linhas.map(l => `<p>${esc(l)}</p>`).join('')}`).join('') +
+  const vf = verificar(trabalho, res);
+  const verif = vf ? `<h4>Verificação simples <span>${vf.ok ? 'passa' : 'NÃO PASSA'}</span></h4><table class="a3-t">${vf.linhas.map(l => `<tr><td>${esc(l.elemento)}<br>${esc(l.perfil)}</td><td class="n">${esc(l.esforco)}</td><td class="n"><b>${dec(l.ratio)}</b>${l.ok ? '' : ' ✗'}</td></tr>${l.sugestao ? `<tr><td colspan="3" class="av">Sugestão: ${esc(l.sugestao)}</td></tr>` : ''}`).join('')}</table>
+<p>${vf.cargas.map(esc).join(' · ')}. Aproveitamento até 1,00 passa.</p><p>${esc(vf.notas[vf.notas.length - 1])}</p>` : '';
+  const notas = resumo + verif + notasFabrico(trabalho, res).map(b => `<h4>${esc(b.titulo)}</h4>${b.linhas.map(l => `<p>${esc(l)}</p>`).join('')}`).join('') +
     (avisos.length ? `<h4>Avisos</h4>${avisos.map(a => `<p class="av">${esc(a)}</p>`).join('')}` : '') +
     (trabalho.notas ? `<h4>Notas para a oficina</h4><p>${esc(trabalho.notas).replace(/\n/g, '<br>')}</p>` : '');
   const e1 = new Set(), CAB = imagem3d ? 13 : 20, RESTO = 34;
