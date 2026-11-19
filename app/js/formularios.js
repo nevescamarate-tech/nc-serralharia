@@ -131,3 +131,18 @@ export function desenharFormulario(el, tipo, medidas, onChange) {
     pinta(); onChange(medidas);
   };
 }
+
+CAMPOS.telheiro = [
+  N('comp', 'Comprimento (ao comprido da frente)'),
+  N('largura', 'Largura (profundidade, no sentido da água)'),
+  N('altura', 'Altura livre à frente (lado baixo)'),
+  N('pendente', 'Pendente (0 para pérgula plana)', { un: '%', livre: true }),
+  S('apoio', 'Apoio', { pilares: 'Duas filas de pilares', parede: 'Encostado à parede (pilares só à frente)' }),
+  S('cobertura', 'Cobertura', { sandwich: 'Painel sandwich', trapezoidal: 'Chapa trapezoidal', ripado: 'Ripado (pérgula, sem chapa)', nenhuma: 'Só a estrutura' }),
+  P('pPilar', 'Perfil dos pilares', ['tq', 'tret', 'tr'], { av: true }),
+  P('pViga', 'Perfil das vigas', ['tret', 'tq'], { av: true }),
+  P('pMadre', 'Perfil das madres / ripas', ['tret', 'tq', 'tr', 'tu'], { av: true, se: m => m.cobertura !== 'nenhuma' }),
+  N('vaoMax', 'Vão máximo entre pilares', { av: true }),
+  N('maxMadres', 'Afastamento máximo das madres / ripas', { av: true, se: m => m.cobertura !== 'nenhuma' }),
+  N('beiral', 'Beiral (saliência a toda a volta)', { av: true, livre: true }),
+];

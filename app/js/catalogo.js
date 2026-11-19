@@ -7,10 +7,10 @@ function add(id, nome, forma, o) { PERFIS[id] = { id, nome, forma, ...o }; }
 [[33.7, 2, 'tr33x2'], [42.4, 2, 'tr42x2'], [48.3, 2, 'tr48x2'], [60.3, 2, 'tr60x2']]
   .forEach(([d, e, id]) => add(id, `Tubo redondo Ø${String(d).replace('.', ',')}×${e}`, 'tr', { d, e }));
 // Tubo quadrado
-[[20, 2], [30, 2], [40, 2], [50, 2], [60, 3], [80, 3], [100, 3]]
+[[20, 2], [30, 2], [40, 2], [50, 2], [60, 3], [80, 3], [80, 4], [100, 3], [100, 4], [120, 4]]
   .forEach(([a, e]) => add(`tq${a}x${e}`, `Tubo quadrado ${a}×${a}×${e}`, 'tq', { a, e }));
 // Tubo retangular
-[[40, 20, 2], [50, 30, 2], [60, 40, 2], [80, 20, 2], [80, 40, 2], [100, 50, 3]]
+[[40, 20, 2], [50, 30, 2], [60, 40, 2], [80, 20, 2], [80, 40, 2], [100, 50, 3], [120, 60, 3], [150, 50, 3]]
   .forEach(([a, b, e]) => add(`tret${a}x${b}x${e}`, `Tubo retangular ${a}×${b}×${e}`, 'tret', { a, b, e }));
 // Barra chata
 [[30, 5], [40, 5], [40, 8], [50, 8]]
@@ -131,16 +131,33 @@ export const ACESSORIOS = {
   tampao_inox: { nome: 'Tampão de soldar (preço para DN50)', un: 'un' },
   te_inox: { nome: 'Tê de soldar (preço para DN50)', un: 'un' },
   abracadeira_inox: { nome: 'Abraçadeira de tubo (preço para DN50)', un: 'un' },
+  placa_base: { nome: 'Placa de base de pilar, cortada e furada', un: 'un' },
+  perno: { nome: 'Perno de ancoragem M12 com porca e anilha', un: 'un' },
+  bucha_quimica: { nome: 'Bucha química M12 (varão, porca e resina)', un: 'un' },
+  parafuso_cob: { nome: 'Autoperfurante de cobertura com anilha EPDM', un: 'un' },
 };
 
 export const PRECOS_EXEMPLO = {
   exemplo: true,
   kg: { aco: 1.6, inox304: 5.5, inox316: 7.5, aluminio: 6.0 },
-  m2: { vidro: 95, chapa_aco: 28, chapa_inox: 95, chapa_aluminio: 45 },
+  m2: { vidro: 95, chapa_aco: 28, chapa_inox: 95, chapa_aluminio: 45, sandwich: 24, trapezoidal: 11 },
   acessorios: { sapata: 4.5, fix_lateral: 7, bucha: 0.6, tampa: 0.8, pinca_vidro: 9, suporte_parede: 5.5, curva90: 6,
     dobradica: 8, fechadura: 45, batente_chao: 12, roda: 22, carril: 14, guia_sup: 18, batente_fim: 15,
-    cremalheira: 9, motor_prep: 35, curva_inox: 9, flange_inox: 18, tampao_inox: 7, te_inox: 14, abracadeira_inox: 4 },
+    cremalheira: 9, motor_prep: 35, placa_base: 14, perno: 2.5, bucha_quimica: 4.5, parafuso_cob: 0.25, curva_inox: 9, flange_inox: 18, tampao_inox: 7, te_inox: 14, abracadeira_inox: 4 },
   horaOficina: 28, horaMontagem: 30, deslocacao: 40,
   acabamento: { pintado: 12, lacado: 16, galvanizado: 0.75, escovado: 8, polido: 18, anodizado: 14, decapado: 6 },
   margem: 30, iva: 23, vara: 6000, serra: 3, materialModo: 'varas', desperdicio: 8, consumiveis: 3,
 };
+
+/** Painéis: nome para as listas, peso por m² (quando não vem da espessura) e chave do preço por m². */
+export const PAINEIS = {
+  vidro: { nome: 'Vidro laminado' }, chapa: { nome: 'Chapa' },
+  sandwich: { nome: 'Painel sandwich de cobertura', kgm2: 10, preco: 'sandwich' },
+  trapezoidal: { nome: 'Chapa trapezoidal de cobertura', kgm2: 6.5, preco: 'trapezoidal' },
+};
+/** Nome e peso (kg) de um painel de w × h mm. */
+export function painelInfo(p, material) {
+  const d = PAINEIS[p.grupo] || { nome: p.grupo }, m2 = p.w * p.h / 1e6;
+  const kg = d.kgm2 ? m2 * d.kgm2 : p.grupo === 'chapa' ? m2 * p.esp / 1000 * (MATERIAIS[material] || MATERIAIS.aco).densidade : 0;
+  return { nome: `${d.nome} ${String(p.esp).replace('.', ',')} mm`, kg, preco: d.preco || null };
+}

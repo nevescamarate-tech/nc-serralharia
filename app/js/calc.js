@@ -2,6 +2,7 @@ import { calcGuarda, DEF_GUARDA } from './modelos/guarda.js';
 import { calcCorrimao, DEF_CORRIMAO } from './modelos/corrimao.js';
 import { calcPortao, DEF_PORTAO } from './modelos/portao.js';
 import { calcTubagem, DEF_TUBAGEM } from './modelos/tubagem.js';
+import { calcTelheiro, DEF_TELHEIRO } from './modelos/telheiro.js';
 import { vazio } from './modelos/util.js';
 
 export const TIPOS = {
@@ -9,6 +10,7 @@ export const TIPOS = {
   corrimao: { nome: 'Corrimão', calc: calcCorrimao, def: DEF_CORRIMAO },
   portao: { nome: 'Portão', calc: calcPortao, def: DEF_PORTAO },
   tubagem: { nome: 'Tubagem', calc: calcTubagem, def: DEF_TUBAGEM },
+  telheiro: { nome: 'Telheiro / pérgula', calc: calcTelheiro, def: DEF_TELHEIRO },
 };
 
 /** Calcula as peças de um trabalho. Nunca lança erro: devolve avisos. */

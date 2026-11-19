@@ -1,7 +1,6 @@
-import { PERFIS, MATERIAIS, ACESSORIOS, kgm, perimetro, acabamentoDe } from './catalogo.js';
+import { PERFIS, MATERIAIS, ACESSORIOS, kgm, perimetro, acabamentoDe, painelInfo } from './catalogo.js';
 
 const n0 = v => (Number.isFinite(+v) ? +v : 0);
-const NOME_PAINEL = { vidro: 'Vidro laminado', chapa: 'Chapa' };
 
 /** Lista de material: perfis (quantidade, metros, kg) e painéis (m²). */
 export function listaMaterial(res, material) {
@@ -15,11 +14,13 @@ export function listaMaterial(res, material) {
   const pain = new Map();
   for (const p of res.paineis) {
     const k = p.grupo + p.esp;
-    const g = pain.get(k) || { painel: p.grupo, nome: `${NOME_PAINEL[p.grupo] || p.grupo} ${p.esp} mm`, qtd: 0, m2: 0, esp: p.esp };
+    const inf = painelInfo(p, material);
+    const g = pain.get(k) || { painel: p.grupo, nome: inf.nome, qtd: 0, m2: 0, esp: p.esp, kg: 0, preco: inf.preco };
+    g.kg += inf.kg;
     g.qtd++; g.m2 += p.w * p.h / 1e6; pain.set(k, g);
   }
   for (const g of pain.values()) {
-    if (g.painel === 'chapa') g.kg = g.m2 * g.esp / 1000 * mat.densidade;
+    if (!g.kg) delete g.kg;
     lista.push(g);
   }
   return lista;
@@ -27,7 +28,7 @@ export function listaMaterial(res, material) {
 
 /** Peso do metal (perfis e chapa), em kg. */
 export function pesoKg(res, material) {
-  return listaMaterial(res, material).reduce((s, x) => s + (x.kg || 0), 0);
+  return listaMaterial(res, material).reduce((s, x) => s + (!x.painel || x.painel === 'chapa' ? x.kg || 0 : 0), 0);
 }
 /** Superfície exterior a tratar, em m². */
 export function superficieM2(res) {
@@ -62,7 +63,7 @@ export function custo(trabalho, res, plano, precos) {
   // Painéis
   let cPaineis = 0;
   for (const g of listaMaterial(res, material).filter(x => x.painel)) {
-    const ch = g.painel === 'vidro' ? 'vidro' : 'chapa_' + mat.familia;
+    const ch = g.preco || (g.painel === 'vidro' ? 'vidro' : 'chapa_' + mat.familia);
     const pu = precos.m2 && precos.m2[ch];
     if (!(pu > 0)) semPreco.push(ch);
     cPaineis += linha(g.nome, g.m2, 'm²', n0(pu));

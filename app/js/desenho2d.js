@@ -48,7 +48,7 @@ export function alcadoSVG(res, { fino = false, refs = null, janela = null } = {}
     formas.push(pol(q, p.grupo === 'vidro' ? 'vd' : 'pn')); pts.push(...q);
   }
   for (const p of res.pecas) {
-    const q = faixa(p.s[0], p.s[1], p.s[2], p.s[3], p.t);
+    const q = faixa(p.s[0], p.s[1], p.s[2], p.s[3], p.ts ?? p.t);
     formas.push(pol(q, 'pc')); pts.push(...q);
   }
   const b = limites(pts);
@@ -96,6 +96,7 @@ export function plantaSVG(res, { fino = false } = {}) {
   if (!res || (!res.pecas.length && !res.paineis.length)) return VAZIO;
   const formas = [], pts = [];
   for (const p of res.paineis) {
+    if (p.plano) continue;   // cobertura: na planta taparia a estrutura
     const x2 = p.o[0] + p.u[0] * p.w, z2 = p.o[2] + p.u[2] * p.w;
     const q = faixa(p.o[0], -p.o[2], x2, -z2, Math.max(p.esp, 6));
     formas.push(pol(q, p.grupo === 'vidro' ? 'vd' : 'pn')); pts.push(...q);

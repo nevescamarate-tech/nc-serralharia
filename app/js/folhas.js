@@ -1,7 +1,7 @@
 // Folhas para imprimir: preparação (oficina) e proposta (cliente).
 import { esc, dec, eur, dataPT, logoSVG } from './fmt.js';
 import { MATERIAIS, acabamentoDe } from './catalogo.js';
-import { superficieM2 } from './custo.js';
+import { superficieM2, pesoKg } from './custo.js';
 import { listaPosicoes, aprovisionamento, notasFabrico, escalaPara, pormenorVao, pormenorPe } from './preparacao.js';
 import { alcadoSVG, plantaSVG } from './desenho2d.js';
 import { TIPOS } from './calc.js';
@@ -22,7 +22,7 @@ export function descricaoMaterial(trabalho) {
 }
 
 // ---------- folhas A3 de preparação ----------
-const LETRA_TIPO = { guarda: 'G', corrimao: 'C', portao: 'P', tubagem: 'T' };
+const LETRA_TIPO = { guarda: 'G', corrimao: 'C', portao: 'P', tubagem: 'T', telheiro: 'TL' };
 const virg = (v, c = 1) => String(Math.round(v * 10 ** c) / 10 ** c).replace('.', ',');
 
 /** Põe um SVG à escala normalizada que caiba na caixa (mm de papel). unidade = mm reais por unidade do viewBox. */
@@ -72,7 +72,7 @@ export function folhaPreparacao(obra, trabalho, res, plano, imagem3d, empresa, f
   const nova = (sub, corpo, escalas = new Set()) => folhas.push({ sub, corpo, escalas });
 
   // 1 — conjunto, notas e lista de posições
-  const kg = posicoes.reduce((s, p) => s + p.kg, 0);
+  const kg = pesoKg(res, trabalho.material);
   const avisos = [...res.avisos, ...plano.avisos];
   const notas = notasFabrico(trabalho, res).map(b => `<h4>${esc(b.titulo)}</h4>${b.linhas.map(l => `<p>${esc(l)}</p>`).join('')}`).join('') +
     (avisos.length ? `<h4>Avisos</h4>${avisos.map(a => `<p class="av">${esc(a)}</p>`).join('')}` : '') +
@@ -80,7 +80,7 @@ export function folhaPreparacao(obra, trabalho, res, plano, imagem3d, empresa, f
   const e1 = new Set(), CAB = imagem3d ? 13 : 20, RESTO = 34;
   const topo1 = imagem3d ? `<figure class="a3-v a3-3d"><figcaption><b>Conjunto</b> s/ escala</figcaption><img src="${imagem3d}" alt="Vista 3D"></figure>` : '';
   nova('Conjunto e lista de posições', `<div class="a3-g1"><div>${topo1}<h3>Lista de posições (peças a fabricar)</h3>${tabelaPosicoes(posicoes.slice(0, CAB))}
-<p class="a3-n"><b>Peso total das peças ≈ ${dec(kg, 1)} kg</b> · superfície a tratar ≈ ${dec(superficieM2(res), 1)} m²${posicoes.length > CAB ? ' · a lista continua na folha seguinte' : ''}. Comprimentos em mm, pela ponta mais comprida; 90° = corte em esquadria.</p></div>
+<p class="a3-n"><b>Peso do metal ≈ ${dec(kg, 1)} kg</b> · superfície a tratar ≈ ${dec(superficieM2(res), 1)} m²${posicoes.length > CAB ? ' · a lista continua na folha seguinte' : ''}. Comprimentos em mm, pela ponta mais comprida; 90° = corte em esquadria.</p></div>
 <aside class="a3-notas">${notas}</aside></div>`, e1);
   for (let i = CAB; i < posicoes.length; i += RESTO)
     nova('Lista de posições (continuação)', `<h3>Lista de posições (continuação)</h3>${tabelaPosicoes(posicoes.slice(i, i + RESTO))}`);
@@ -90,10 +90,17 @@ export function folhaPreparacao(obra, trabalho, res, plano, imagem3d, empresa, f
   const alc = alcadoSVG(res, { fino: true, refs: refDe }), pla = plantaSVG(res, { fino: true });
   let corpo2;
   if (tub) corpo2 = `${vista('Isométrico', alc, 392, 150, new Set(), 'Isométrico sem escala; cotas ao eixo, em mm.')}${vista('Planta', pla, 392, 60, e2)}`;
-  else corpo2 = `${vista('Alçado', alc, 392, 112, e2)}<div class="a3-g3">${vista('Planta', pla, 150, 78, e2)}${
+  else if (res.cotasLateral) {   // telheiro: alçado frontal, lateral e planta
+    const refsL = new Map();
+    const lat = { ...res, paineis: [], cotas: res.cotasLateral, pontos: (res.pontos || []).filter(p => p.sl).map(p => ({ ...p, s: p.sl })),
+      pecas: res.pecas.filter(p => p.sl).map(p => { const c = { ...p, s: p.sl, ts: p.tl }; refsL.set(c, refDe.get(p)); return c; }) };
+    corpo2 = `${vista('Alçado frontal', alc, 392, 92, e2)}<div class="a3-g3">${
+      vista('Alçado lateral', alcadoSVG(lat, { fino: true, refs: refsL }), 125, 92, e2, `Pendente ${virg(res.pendente)} % · topo da viga atrás a ≈ ${Math.round(res.alturaAlta)} mm.`)}${
+      vista('Planta da estrutura', pla, 150, 92, e2, 'Sem a cobertura.')}${pe ? vista('Pormenor 1 — ' + pe.titulo.toLowerCase(), pe.svg, 90, 78, e2, pe.nota) : ''}</div>`;
+  } else corpo2 = `${vista('Alçado', alc, 392, 112, e2)}<div class="a3-g3">${vista('Planta', pla, 150, 78, e2)}${
     vao ? vista('Pormenor 1 — vão tipo', vao, 125, 78, e2, 'Vão livre entre montantes e folgas do enchimento.') : ''}${
     pe ? vista('Pormenor 2 — ' + pe.titulo.toLowerCase(), pe.svg, 90, 70, e2, pe.nota) : ''}</div>`;
-  nova(tub ? 'Isométrico e planta' : 'Alçado, planta e pormenores', corpo2, e2);
+  nova(tub ? 'Isométrico e planta' : res.cotasLateral ? 'Alçados, planta e pormenores' : 'Alçado, planta e pormenores', corpo2, e2);
 
   // 3 — aprovisionamento e corte (com continuação se não couber)
   const lado = `<aside class="a3-notas">${ap.chapas.length ? `<h4>Chapas e vidros</h4><table class="a3-t"><tr><th>Material</th><th class="n">Peças</th><th class="n">m²</th><th class="n">kg</th></tr>

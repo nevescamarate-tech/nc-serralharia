@@ -24,6 +24,8 @@ const geradores = {
     pAro: um(TUBOS), pTravessa: um(TUBOS), pVarao: um(FINOS), pLamina: um(perfis('tret', 'barra')), vaoMax: um([110, entre(40, 200)]), folgaLado: entre(5, 40), folgaChao: entre(10, 150), sobreposicao: entre(50, 500), pilares: rnd() < 0.5, pPilar: um(perfis('tq', 'tret')), motor: rnd() < 0.5 }),
   tubagem: () => ({ dn: +um(Object.keys(DIAMETROS)), esp: um(ESPESSURAS), trocos: Array.from({ length: entre(1, 7) }, () => ({ comp: entre(150, 9000), dir: um(['dir', 'esq', 'cima', 'baixo', 'frente', 'tras']), tes: um([0, 0, 0, 1, 3]) })),
     ini: um(['livre', 'flange', 'tampao']), fim: um(['livre', 'flange', 'tampao']), maxSuportes: um([2000, entre(500, 4000)]) }),
+  telheiro: () => ({ comp: entre(600, 40000), largura: entre(600, 9000), altura: entre(1000, 6000), pendente: um([0, 5, 10, entre(0, 40)]), apoio: um(['pilares', 'parede']), cobertura: um(['sandwich', 'trapezoidal', 'ripado', 'nenhuma']),
+    pPilar: um(perfis('tq', 'tret', 'tr')), pViga: um(perfis('tret', 'tq')), pMadre: um(TUBOS), vaoMax: um([3500, entre(500, 8000)]), maxMadres: um([1000, 450, entre(100, 2000)]), beiral: um([200, 0, entre(0, 800)]) }),
 };
 const obra = { cliente: 'C', nome: 'O', morada: '', numero: '1', data: '2026-11-18', validade: 30, condicoes: '' };
 

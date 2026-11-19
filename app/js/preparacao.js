@@ -1,5 +1,5 @@
 // Preparação para a oficina: lista de posições, aprovisionamento, notas de fabrico, escalas e pormenores.
-import { PERFIS, MATERIAIS, ACESSORIOS, kgm, dims, acabamentoDe } from './catalogo.js';
+import { PERFIS, MATERIAIS, ACESSORIOS, kgm, acabamentoDe, painelInfo } from './catalogo.js';
 import { nomeAcessorio } from './custo.js';
 import { alcadoSVG } from './desenho2d.js';
 
@@ -7,7 +7,8 @@ const arred = (v, c = 1) => Math.round(v * 10 ** c) / 10 ** c;
 const GRUPOS = {
   corrimao: ['C', 'Corrimão'], prumo: ['P', 'Prumo'], pilar: ['PL', 'Pilar'], aro: ['A', 'Aro da folha'], travessa: ['T', 'Travessa'],
   varao: ['V', 'Varão'], barra: ['B', 'Barra horizontal'], lamina: ['L', 'Lâmina'], tubo: ['TB', 'Troço de tubo'],
-  chapa: ['CH', 'Chapa de enchimento'], vidro: ['VD', 'Vidro laminado'],
+  viga: ['VG', 'Viga'], vigap: ['VP', 'Viga de parede'], madre: ['M', 'Madre'], ripa: ['R', 'Ripa'],
+  chapa: ['CH', 'Chapa de enchimento'], vidro: ['VD', 'Vidro laminado'], sandwich: ['CB', 'Painel de cobertura'], trapezoidal: ['CB', 'Chapa de cobertura'],
 };
 const ORDEM = Object.keys(GRUPOS);
 const grau = a => String(arred(90 - (+a || 0))).replace('.', ',') + '°';
@@ -31,9 +32,9 @@ export function listaPosicoes(res, material) {
   }
   for (const p of (res && res.paineis) || []) {
     const k = `${p.grupo}|${p.esp}|${p.w}|${p.h}|${p.dy ? arred(p.dy) : 0}`;
-    if (!juntas.has(k)) juntas.set(k, { tipo: 'painel', grupo: p.grupo, perfilId: '', perfil: `${p.grupo === 'vidro' ? 'Vidro laminado' : 'Chapa'} ${p.esp} mm`,
+    if (!juntas.has(k)) juntas.set(k, { tipo: 'painel', grupo: p.grupo, perfilId: '', perfil: painelInfo(p, mat).nome,
       L: Math.max(p.w, p.h), dim: `${Math.round(p.w)} × ${Math.round(p.h)}`, qtd: 0,
-      kgUn: p.grupo === 'chapa' ? p.w * p.h / 1e6 * p.esp / 1000 * dens : 0, corte: p.dy ? 'topo inclinado' : '—', itens: [] });
+      kgUn: painelInfo(p, mat).kg, corte: p.dy ? 'topo inclinado' : '—', itens: [] });
     const g = juntas.get(k); g.qtd++; g.itens.push(p);
   }
   const lista = [...juntas.values()].sort((a, b) => {
@@ -72,9 +73,9 @@ export function aprovisionamento(res, plano, material, vara = 6000) {
   const dens = (MATERIAIS[material] || MATERIAIS.aco).densidade, porTipo = new Map();
   for (const p of (res && res.paineis) || []) {
     const k = p.grupo + p.esp;
-    if (!porTipo.has(k)) porTipo.set(k, { nome: `${p.grupo === 'vidro' ? 'Vidro laminado' : 'Chapa'} ${p.esp} mm`, grupo: p.grupo, esp: p.esp, qtd: 0, m2: 0, kg: 0 });
+    if (!porTipo.has(k)) porTipo.set(k, { nome: painelInfo(p, material).nome, grupo: p.grupo, esp: p.esp, qtd: 0, m2: 0, kg: 0 });
     const g = porTipo.get(k); g.qtd++; g.m2 += p.w * p.h / 1e6;
-    if (p.grupo === 'chapa') g.kg += p.w * p.h / 1e6 * p.esp / 1000 * dens;
+    g.kg += painelInfo(p, material).kg;
   }
   const chapas = [...porTipo.values()].map(g => ({ ...g, m2: arred(g.m2, 2), kg: arred(g.kg, 1) }));
   const compra = ((res && res.acessorios) || []).map(a => ({ nome: nomeAcessorio(a), qtd: a.qtd, un: (ACESSORIOS[a.ref] || {}).un || 'un' }));
@@ -103,6 +104,8 @@ export function notasFabrico(trabalho, res) {
     { titulo: 'Montagem', linhas: [tub ? 'Ensaio de estanquidade antes da entrega. Suportes conforme o isométrico.' : 'Confirmar as medidas em obra antes do corte.',
       ...(fix ? ['Fixações por bucha: confirmar o tipo de suporte (betão, alvenaria, pedra).'] : [])] },
   ];
+  if (res.telheiro) blocos.splice(4, 1, { titulo: 'Montagem', linhas: ['Pórticos (pilares e viga) soldados em oficina; madres e cobertura montadas em obra.', 'Confirmar em obra o alinhamento e o nível das fundações antes do fabrico.'] },
+    { titulo: 'Estrutura', linhas: ['[A CALCULAR] Secções, placas de base, pernos, fundações e contraventamento por técnico habilitado (vento, neve e peso da cobertura).'] });
   blocos.push({ titulo: 'Atenção', linhas: ['[A CONFIRMAR] Notas geradas pela app conforme o material e o acabamento; rever antes do fabrico.'] });
   return blocos;
 }
@@ -118,7 +121,7 @@ const VERTICAIS = ['prumo', 'aro', 'pilar', 'travessa'];
 const vertical = p => Math.abs(p.s[2] - p.s[0]) < 1;
 /** Pormenor ampliado do primeiro vão: vão livre entre montantes e folga do enchimento. '' se não se aplicar. */
 export function pormenorVao(res) {
-  if (!res || !res.pecas.length || (res.cotas || []).some(c => c.tipo === 'l')) return '';
+  if (!res || !res.pecas.length || res.telheiro || (res.cotas || []).some(c => c.tipo === 'l')) return '';
   const mont = res.pecas.filter(p => VERTICAIS.includes(p.grupo) && vertical(p)).sort((a, b) => a.s[0] - b.s[0]);
   if (mont.length < 2) return '';
   const a = mont[0], b = mont.find(p => p.s[0] - a.s[0] > a.t + 20);
@@ -139,7 +142,7 @@ export function pormenorVao(res) {
 /** Pormenor do pé do prumo (sapata ou fixação lateral). Dimensões da chapa são pressuposto. null se não houver. */
 export function pormenorPe(res) {
   const pt = ((res && res.pontos) || []).find(p => p.tipo === 'sapata' || p.tipo === 'fix_lateral');
-  const prumo = pt && res.pecas.find(p => p.grupo === 'prumo');
+  const prumo = pt && res.pecas.find(p => p.grupo === 'prumo' || p.grupo === 'pilar'), pilar = prumo && prumo.grupo === 'pilar';
   if (!pt || !prumo) return null;
   const a = prumo.t, lateral = pt.tipo === 'fix_lateral';
   const f = v => String(Math.round(v * 10) / 10);
@@ -156,9 +159,9 @@ export function pormenorPe(res) {
 <line class="e" x1="-40" y1="80" x2="${f(a + 30)}" y2="80"/><line class="e" x1="-40" y1="140" x2="${f(a + 30)}" y2="140"/>
 ${cotaH(e, e + a, -12, f(a))}<text class="t" x="${f(a + 20)}" y="112">60</text><text class="t" x="${f(a + 20)}" y="30">pavimento</text><text class="t" x="${f(a + 20)}" y="176">prumo desce 120</text></svg>` };
   }
-  const lado = Math.max(100, Math.ceil((a + 60) / 10) * 10), e = 8, fu = lado - 30, x0 = -lado / 2;
+  const lado = pilar ? Math.ceil((a + 120) / 10) * 10 : Math.max(100, Math.ceil((a + 60) / 10) * 10), e = pilar ? 10 : 8, fu = lado - (pilar ? 60 : 30), x0 = -lado / 2;
   const furos = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([i, j]) => `<circle class="l" cx="${f(i * fu / 2)}" cy="${f(190 + j * fu / 2)}" r="6"/>`).join('');
-  return { titulo: 'Pé do prumo — sapata', nota: `Chapa ${lado}×${lado}×${e}, 4 furos Ø12 para bucha M10, cordão a3 a toda a volta — [A CONFIRMAR] conforme o suporte.`, w: lado + 120, h: lado + 250,
+  return { titulo: pilar ? 'Pé do pilar — placa de base' : 'Pé do prumo — sapata', nota: pilar ? `Placa ${lado}×${lado}×${e}, 4 furos Ø14 para perno M12, cordão a4 a toda a volta — [A CONFIRMAR] com o cálculo e a fundação.` : `Chapa ${lado}×${lado}×${e}, 4 furos Ø12 para bucha M10, cordão a3 a toda a volta — [A CONFIRMAR] conforme o suporte.`, w: lado + 120, h: lado + 250,
     svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${f(x0 - 60)} -40 ${lado + 120} ${lado + 250}">${estilo}
 <rect class="l" x="${f(-a / 2)}" y="-40" width="${f(a)}" height="110"/><rect class="c" x="${f(x0)}" y="70" width="${lado}" height="${e}"/>
 <rect class="h" x="${f(x0 - 40)}" y="${70 + e}" width="${lado + 80}" height="26"/>
