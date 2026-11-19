@@ -20,7 +20,7 @@ test('calcular despacha pelo tipo de trabalho', () => {
 });
 test('total é a soma das parcelas', () => {
   const { c } = caso();
-  perto(c.total, c.material + c.paineis + c.acessorios + c.oficina + c.acabamento + c.montagem + c.deslocacao, 0.01);
+  perto(c.total, c.material + c.paineis + c.consumiveis + c.acessorios + c.oficina + c.acabamento + c.montagem + c.deslocacao, 0.01);
   ok(c.total > 0); ok(semNaN(c));
 });
 test('margem de 30% e IVA de 23%', () => {

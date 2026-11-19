@@ -142,5 +142,5 @@ export const PRECOS_EXEMPLO = {
     cremalheira: 9, motor_prep: 35, curva_inox: 9, flange_inox: 18, tampao_inox: 7, te_inox: 14, abracadeira_inox: 4 },
   horaOficina: 28, horaMontagem: 30, deslocacao: 40,
   acabamento: { pintado: 12, lacado: 16, galvanizado: 0.75, escovado: 8, polido: 18, anodizado: 14, decapado: 6 },
-  margem: 30, iva: 23, vara: 6000, serra: 3, materialModo: 'varas', desperdicio: 8,
+  margem: 30, iva: 23, vara: 6000, serra: 3, materialModo: 'varas', desperdicio: 8, consumiveis: 3,
 };

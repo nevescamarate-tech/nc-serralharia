@@ -2,7 +2,7 @@
 import * as store from './store.js';
 import { calcular, TIPOS } from './calc.js';
 import { planoCorte } from './corte.js';
-import { custo, listaMaterial, horasEstimadas } from './custo.js';
+import { custo, listaMaterial, horasEstimadas, capitulos } from './custo.js';
 import { alcadoSVG, plantaSVG } from './desenho2d.js';
 import { desenharFormulario } from './formularios.js';
 import { folhaPreparacao, folhaProposta, descricaoMaterial } from './folhas.js';
@@ -136,15 +136,16 @@ async function ecraTrabalho(obraId, tid, sep = 'medidas') {
 <label class="campo linha-nome"><span>Nome do trabalho</span><input id="nome" value="${esc(t.nome)}" placeholder="ex.: ${{ guarda: 'varanda do 1.º andar', corrimao: 'escada interior', portao: 'entrada principal', tubagem: 'linha de água da cozinha' }[t.tipo]}"></label>
 <nav class="seps" role="tablist">${Object.entries(seps).map(([k, n]) => `<button role="tab" data-sep="${k}" aria-selected="${k === sep}">${n}</button>`).join('')}</nav>
 <div id="avisos"></div>
-<section id="p-medidas" class="painel"><form id="form" class="bloco" onsubmit="return false"></form>
+<div class="trab"><section id="p-medidas" class="painel"><form id="form" class="bloco" onsubmit="return false"></form>
 <label class="campo notas"><span>Notas para a oficina</span><textarea id="notas" rows="3">${esc(t.notas)}</textarea></label>
 <h3>Fotos</h3><div id="fotos" class="fotos"></div>
 <label class="b-sec ficheiro">+ Juntar fotos<input type="file" id="f-foto" accept="image/*" multiple></label>
 <button class="b-per" id="apagar-t">Apagar este trabalho</button></section>
 <section id="p-desenho" class="painel"><h3>${t.tipo === 'tubagem' ? 'Isométrico' : 'Alçado'}</h3><div class="des" id="alcado"></div><h3>Planta</h3><div class="des" id="planta"></div>
-<button class="b-pri" id="prep">Folha de preparação</button></section>
+<label class="campo notas"><span>Revisão do desenho</span><input id="rev" value="${esc(t.rev || "00")}" maxlength="4" style="max-width:120px"></label>
+<button class="b-pri" id="prep">Preparação para a oficina (folhas A3)</button></section>
 <section id="p-tres" class="painel"><div id="tres" class="tres"></div><button class="b-lig" id="centrar">Centrar vista</button><div class="bloco" id="acab"></div></section>
-<section id="p-custo" class="painel"></section>`;
+<section id="p-custo" class="painel"></section></div>`;
 
   function pintaAvisos() {
     const l = [...r.res.avisos, ...r.plano.avisos];
@@ -179,23 +180,34 @@ ${mat.map(l => `<tr><td>${esc(l.nome)}</td><td class="n">${l.qtd}</td><td class=
 ${r.plano.porPerfil.map(g => `<tr><td>${esc((PERFIS[g.perfil] || {}).nome || g.perfil)}</td><td class="n">${g.nVaras}</td><td class="n">${dec(g.desperdicio / 1000)} m</td></tr>`).join('')}</table>
 <h3>Custo ${t.precos.exemplo ? '<span class="etq">preços de exemplo</span>' : ''}</h3>
 <table class="tab"><tr><th>Parcela</th><th class="n">Qtd.</th><th class="n">Preço</th><th class="n">Total</th></tr>
-${c.linhas.map(l => `<tr><td>${esc(l.desc)}</td><td class="n">${dec(l.qtd, l.un === 'un' ? 0 : 2)} ${l.un}</td><td class="n">${dec(l.pu)}</td><td class="n">${dec(l.total)}</td></tr>`).join('')}
+${capitulos(c).map(k => `<tr class="cap"><td colspan="3">${k.n}. ${esc(k.nome)}<span class="pct">${dec(k.pct, 0)} %</span></td><td class="n">${dec(k.total)}</td></tr>` +
+  k.linhas.map(l => `<tr class="sub"><td>${esc(l.desc)}</td><td class="n">${dec(l.qtd, l.un === 'un' ? 0 : 2)} ${l.un}</td><td class="n">${dec(l.pu)}</td><td class="n">${dec(l.total)}</td></tr>`).join('')).join('')}
 <tr class="soma"><td colspan="3">Custo total</td><td class="n">${eur(c.total)}</td></tr></table>
 <div class="bloco">${num('i-ho', 'Horas de oficina', t.horasOficina, 'h', 'estimativa: ' + dec(horasEstimadas(r.res), 1))}${num('i-hm', 'Horas de montagem', t.horasMontagem, 'h')}
 <label class="campo marca"><input type="checkbox" id="i-desl" ${t.semDeslocacao ? '' : 'checked'}><span>Incluir deslocação neste trabalho</span></label>
 ${num('i-mg', 'Margem', t.margem, '%')}</div>
 <section class="bloco totais"><div><span>Preço de venda sem IVA</span><strong>${eur(c.venda)}</strong></div>
 <div><span>IVA ${dec(t.precos.iva, 0)}%</span><strong>${eur(c.iva)}</strong></div><div class="grande"><span>Total com IVA</span><strong>${eur(c.vendaIva)}</strong></div></section>
+<button class="b-sec" id="excel">Exportar custo para Excel</button>
 <button class="b-sec" id="atual">Atualizar preços pela tabela atual</button>`;
     const liga = (id, k, vazioNulo, minimo = 0) => { $(id).onchange = e => { const v = e.target.value.trim().replace(',', '.'); t[k] = v === '' ? (vazioNulo ? null : 0) : (Number.isFinite(+v) && +v >= minimo ? +v : t[k]); refresca(); }; };
     liga('#i-ho', 'horasOficina', true); liga('#i-hm', 'horasMontagem'); liga('#i-mg', 'margem', false, -100);
     $('#i-desl').onchange = e => { t.semDeslocacao = !e.target.checked; refresca(); };
     $('#atual').onclick = async () => { t.precos = await store.lerPrecos(); refresca(); aviso('Preços atualizados.'); };
+    $('#excel').onclick = async () => {
+      if (!r.res.pecas.length) return aviso('Introduza primeiro as medidas.');
+      const [{ criarXLSX }, { livroCusto }] = await Promise.all([import('./xlsx.js'), import('./livro.js')]);
+      const a = document.createElement('a'), nome = (t.nome || TIPOS[t.tipo].nome).replace(/[^\p{L}\p{N} _-]/gu, '').trim() || 'trabalho';
+      a.href = URL.createObjectURL(new Blob([criarXLSX(livroCusto(obra, t, r.res, r.c))], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+      a.download = `Custo ${nome}.xlsx`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); aviso('Excel guardado.');
+    };
   }
   function refresca(acab) {
     r = contas(t); pintaAvisos(); pintaDesenho(); pintaCusto(); if (acab) pintaAcab(); pinta3D(); guarda();
   }
+  const largo = () => matchMedia('(min-width: 1100px)').matches;
   function mudaSep(k) {
+    if (k === 'medidas' && largo()) k = 'desenho';   // no computador as medidas estão sempre à vista
     ecra.querySelectorAll('.painel').forEach(p => p.classList.toggle('ativo', p.id === 'p-' + k));
     ecra.querySelectorAll('.seps button').forEach(b => b.setAttribute('aria-selected', b.dataset.sep === k));
     history.replaceState(null, '', `#/trabalho/${obra.id}/${t.id}/${k}`);
@@ -205,6 +217,7 @@ ${num('i-mg', 'Margem', t.margem, '%')}</div>
   $('#nome').oninput = e => { t.nome = e.target.value; $('.topo h1').textContent = t.nome || TIPOS[t.tipo].nome; guarda(); };
   ecra.querySelectorAll('.seps button').forEach(b => b.onclick = () => mudaSep(b.dataset.sep));
   $('#notas').oninput = e => { t.notas = e.target.value; guarda(); };
+  $('#rev').oninput = e => { t.rev = e.target.value.trim(); guarda(); };
   // fotos
   if (!Array.isArray(t.fotos)) t.fotos = [];
   async function pintaFotos() {
@@ -250,8 +263,14 @@ ${num('i-mg', 'Margem', t.margem, '%')}</div>
 }
 
 // ---------- folhas ----------
+function ajustaFolha() {
+  // as folhas A3 têm medidas reais (420 mm); no ecrã encolhem até caberem na janela
+  const f = $('#folha'), a3 = f.querySelector('.a3');
+  f.style.zoom = a3 ? Math.min(1, (window.innerWidth - 24) / (420 * 96 / 25.4)).toFixed(3) : '';
+}
+window.addEventListener('resize', () => { if (document.body.classList.contains('com-folha')) ajustaFolha(); });
 function mostrarFolha(html) {
-  $('#folha').innerHTML = html; document.body.classList.add('com-folha'); window.scrollTo(0, 0);
+  $('#folha').innerHTML = html; ajustaFolha(); document.body.classList.add('com-folha'); window.scrollTo(0, 0);
 }
 $('#f-fechar').onclick = () => { document.body.classList.remove('com-folha'); $('#folha').innerHTML = ''; };
 $('#f-imprimir').onclick = () => window.print();
@@ -266,7 +285,7 @@ ${p.exemplo ? '<p class="faixa">Estes são valores de exemplo. Substitua-os pelo
 <form id="fp" onsubmit="return false">
 <h2>Perfis, por kg</h2><section class="bloco">${Object.entries(MATERIAIS).map(([k, m]) => lin('kg.' + k, m.nome, '€/kg')).join('')}</section>
 <h2>Chapa e vidro</h2><section class="bloco">${lin('m2.vidro', 'Vidro laminado', '€/m²')}${lin('m2.chapa_aco', 'Chapa de aço', '€/m²')}${lin('m2.chapa_inox', 'Chapa de inox', '€/m²')}${lin('m2.chapa_aluminio', 'Chapa de alumínio', '€/m²')}</section>
-<h2>Mão de obra</h2><section class="bloco">${lin('horaOficina', 'Hora de oficina', '€/h')}${lin('horaMontagem', 'Hora de montagem', '€/h')}${lin('deslocacao', 'Deslocação', '€')}</section>
+<h2>Mão de obra</h2><section class="bloco">${lin('horaOficina', 'Hora de oficina', '€/h')}${lin('horaMontagem', 'Hora de montagem', '€/h')}${lin('deslocacao', 'Deslocação', '€')}${lin('consumiveis', 'Consumíveis de oficina, sobre o material', '%')}</section>
 <h2>Acabamentos</h2><section class="bloco">${lin('acabamento.pintado', 'Pintura', '€/m²')}${lin('acabamento.lacado', 'Lacagem', '€/m²')}${lin('acabamento.galvanizado', 'Galvanização', '€/kg')}${lin('acabamento.escovado', 'Inox escovado', '€/m²')}${lin('acabamento.polido', 'Inox polido', '€/m²')}${lin('acabamento.anodizado', 'Anodização', '€/m²')}${lin('acabamento.decapado', 'Decapagem e passivação', '€/m²')}</section>
 <h2>Acessórios e ferragens</h2><section class="bloco">${Object.entries(ACESSORIOS).map(([k, a]) => lin('acessorios.' + k, a.nome, '€/' + a.un)).join('')}</section>
 <h2>Regras</h2><section class="bloco">${lin('margem', 'Margem por omissão', '%')}${lin('iva', 'IVA', '%')}${lin('vara', 'Comprimento da vara', 'mm')}${lin('serra', 'Espessura do corte', 'mm')}
@@ -288,7 +307,7 @@ async function ecraDefinicoes() {
   const e = await store.lerEmpresa();
   const campo = (k, rot) => `<label class="campo"><span>${rot}</span><input data-k="${k}" value="${esc(e[k])}"></label>`;
   ecra.innerHTML = `${topo('Definições', '#/')}
-<h2>Dados para as folhas</h2><section class="bloco" id="emp">${campo('morada', 'Morada')}${campo('telefone', 'Telefone')}${campo('email', 'E-mail')}${campo('nif', 'NIF')}</section>
+<h2>Dados para as folhas</h2><section class="bloco" id="emp">${campo('morada', 'Morada')}${campo('telefone', 'Telefone')}${campo('email', 'E-mail')}${campo('nif', 'NIF')}${campo('desenhou', 'Desenhou (nome nas folhas de preparação)')}</section>
 <h2>Cópia de segurança</h2><section class="bloco"><p>As obras ficam guardadas só neste aparelho. Guarde uma cópia com regularidade; o mesmo ficheiro serve para passar as obras para outro aparelho.</p>
 <button class="b-pri" id="exp">Guardar cópia num ficheiro</button>
 <label class="b-sec ficheiro">Carregar cópia de um ficheiro<input type="file" id="imp" accept=".json,application/json"></label></section>`;

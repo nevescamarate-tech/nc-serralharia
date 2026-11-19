@@ -28,17 +28,18 @@ function cotaV(x, y1, y2, texto, U) {
     `<line x1="${f(x - tk)}" y1="${f(-y1)}" x2="${f(x + tk)}" y2="${f(-y1)}"/><line x1="${f(x - tk)}" y1="${f(-y2)}" x2="${f(x + tk)}" y2="${f(-y2)}"/>` +
     `<text x="${f(x - U * 0.45)}" y="${f(ym)}" text-anchor="middle" font-size="${f(U * 1.25)}" transform="rotate(-90 ${f(x - U * 0.45)} ${f(ym)})">${texto}</text></g>`;
 }
-function embrulho(b, U, corpo) {
+function embrulho(b, U, corpo, cor = "#c0392b") {
   const m = U * 1.5, w = b.x1 - b.x0 + 2 * m, h = b.y1 - b.y0 + 2 * m;
   const sw = f(U * 0.07);
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${f(b.x0 - m)} ${f(-b.y1 - m)} ${f(w)} ${f(h)}" class="desenho" preserveAspectRatio="xMidYMid meet">` +
     `<style>.pc{fill:#fff;stroke:#111;stroke-width:${sw}}.pn{fill:#e9eef2;stroke:#111;stroke-width:${sw}}.vd{fill:#d6ecf5;stroke:#4a7d91;stroke-width:${sw}}` +
-    `.cota line{stroke:#c0392b;stroke-width:${f(U * 0.05)}}.cota text{fill:#c0392b;font-family:Helvetica,Arial,sans-serif}` +
+    `.cota line{stroke:${cor};stroke-width:${f(U * 0.05)}}.cota text{fill:${cor};font-family:Helvetica,Arial,sans-serif}` +
+    `.bl circle{fill:#fff;stroke:#1b7f3b;stroke-width:${f(U * 0.09)}}.bl line{stroke:#1b7f3b;stroke-width:${f(U * 0.06)}}.bl text{fill:#111;font-family:Helvetica,Arial,sans-serif;font-weight:bold}` +
     `.chao{stroke:#888;stroke-width:${f(U * 0.06)};stroke-dasharray:${f(U * 0.6)} ${f(U * 0.3)}}.pt{fill:#111}</style>${corpo}</svg>`;
 }
 
 /** Alçado desenvolvido (os troços aparecem seguidos, como se a guarda fosse esticada). */
-export function alcadoSVG(res) {
+export function alcadoSVG(res, { fino = false, refs = null, janela = null } = {}) {
   if (!res || (!res.pecas.length && !res.paineis.length)) return VAZIO;
   const formas = [], pts = [];
   for (const p of res.paineis) {
@@ -51,8 +52,29 @@ export function alcadoSVG(res) {
     formas.push(pol(q, 'pc')); pts.push(...q);
   }
   const b = limites(pts);
-  const U = Math.max(b.x1 - b.x0, b.y1 - b.y0, 400) / 40;
+  if (janela) { b.x0 = janela[0]; b.x1 = janela[1]; }   // pormenor: só se vê esta faixa do alçado
+  const U = Math.max(b.x1 - b.x0, b.y1 - b.y0, 400) / (janela ? 55 : fino ? 85 : 40);
   for (const pt of res.pontos || []) formas.push(`<circle class="pt" cx="${f(pt.s[0])}" cy="${f(-pt.s[1])}" r="${f(U * 0.22)}"/>`);
+  if (refs) {   // um balão por referência, na primeira peça que a tem
+    const vistos = new Set(); let k = 0;
+    for (const p of [...res.pecas, ...res.paineis]) {
+      const ref = refs.get(p); if (!ref || vistos.has(ref)) continue; vistos.add(ref);
+      let ax, ay, bx, by;
+      if (p.w !== undefined) { ax = (p.s[0] + p.s[2]) / 2; ay = (p.s[1] + p.s[3]) / 2 + (p.dy || 0) / 2; bx = ax; by = ay; }
+      else {
+        const dx = p.s[2] - p.s[0], dy = p.s[3] - p.s[1], L = Math.hypot(dx, dy) || 1, vert = Math.abs(dx) < Math.abs(dy) * 0.2;
+        const fr = vert ? 0.3 + 0.2 * (k++ % 3) : 0.3;
+        ax = p.s[0] + dx * fr; ay = p.s[1] + dy * fr;
+        if (vert) { bx = ax + U * 2.4; by = ay + U * 1.4; }
+        else { const s = dx >= 0 ? 1 : -1; bx = ax + (-dy / L) * s * U * 2.6; by = ay + (dx / L) * s * U * 2.6; }
+      }
+      const r = U * 1.2;
+      formas.push(`<g class="bl">${bx !== ax || by !== ay ? `<line x1="${f(ax)}" y1="${f(-ay)}" x2="${f(bx)}" y2="${f(-by)}"/><circle cx="${f(ax)}" cy="${f(-ay)}" r="${f(U * 0.16)}" style="fill:#1b7f3b"/>` : ''}` +
+        `<circle cx="${f(bx)}" cy="${f(-by)}" r="${f(r)}"/><text x="${f(bx)}" y="${f(-by + U * 0.36)}" text-anchor="middle" font-size="${f(U * (ref.length > 2 ? 0.8 : 1.05))}">${ref}</text></g>`);
+      if (!janela) { b.x0 = Math.min(b.x0, bx - r); b.x1 = Math.max(b.x1, bx + r); }
+      b.y0 = Math.min(b.y0, by - r); b.y1 = Math.max(b.y1, by + r);
+    }
+  }
   const yBase = Math.min(b.y0, 0), isometrico = (res.cotas || []).some(c => c.tipo === 'l');
   if (!isometrico) formas.push(`<line class="chao" x1="${f(b.x0 - U)}" y1="0" x2="${f(b.x1 + U)}" y2="0"/>`);
   else { b.y0 -= U * 2; b.y1 += U * 2; b.x0 -= U * 2; b.x1 += U * 2; }
@@ -66,11 +88,11 @@ export function alcadoSVG(res) {
     } else if (c.tipo === 'h') { const y = yBase - U * 2.2 * c.nivel; formas.push(cotaH(c.s1, c.s2, y, c.texto, U)); baixo = Math.min(baixo, y - U); }
     else { const x = b.x0 - U * 2.2; formas.push(cotaV(x, c.y1, c.y2, c.texto, U)); esq = Math.min(esq, x - U * 1.6); }
   }
-  return embrulho({ x0: esq, y0: baixo, x1: b.x1, y1: b.y1 }, U, formas.join(''));
+  return embrulho({ x0: esq, y0: baixo, x1: b.x1, y1: b.y1 }, U, formas.join(''), fino || janela ? '#1f4e9c' : undefined);
 }
 
 /** Planta (vista de cima). */
-export function plantaSVG(res) {
+export function plantaSVG(res, { fino = false } = {}) {
   if (!res || (!res.pecas.length && !res.paineis.length)) return VAZIO;
   const formas = [], pts = [];
   for (const p of res.paineis) {
@@ -86,7 +108,7 @@ export function plantaSVG(res) {
     formas.push(pol(q, 'pc')); pts.push(...q);
   }
   const b = limites(pts);
-  const U = Math.max(b.x1 - b.x0, b.y1 - b.y0, 400) / 40;
+  const U = Math.max(b.x1 - b.x0, b.y1 - b.y0, 400) / (fino ? 85 : 40);
   let lim = { ...b };
   for (const t of res.trocosPlanta || []) {
     const [ax, az] = t.a, [bx, bz] = t.b, dx = bx - ax, dz = bz - az, L = Math.hypot(dx, dz) || 1;
@@ -100,5 +122,5 @@ export function plantaSVG(res) {
     const l2 = limites([[x1, y1], [x2, y2]]);
     lim = { x0: Math.min(lim.x0, l2.x0 - U), y0: Math.min(lim.y0, l2.y0 - U * 2), x1: Math.max(lim.x1, l2.x1 + U), y1: Math.max(lim.y1, l2.y1 + U * 2) };
   }
-  return embrulho(lim, U, formas.join(''));
+  return embrulho(lim, U, formas.join(''), fino ? '#1f4e9c' : undefined);
 }

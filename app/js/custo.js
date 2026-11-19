@@ -46,7 +46,8 @@ export function custo(trabalho, res, plano, precos) {
   const semPreco = [], linhas = [];
   const material = trabalho.material in MATERIAIS ? trabalho.material : 'aco';
   const mat = MATERIAIS[material];
-  const linha = (desc, qtd, un, pu) => { const total = qtd * pu; linhas.push({ desc, qtd, un, pu, total }); return total; };
+  let cap = 'materiais';
+  const linha = (desc, qtd, un, pu) => { const total = qtd * pu; linhas.push({ desc, qtd, un, pu, total, cap }); return total; };
 
   // Perfis
   let precoKg = n0(precos.kg && precos.kg[material]);
@@ -66,7 +67,12 @@ export function custo(trabalho, res, plano, precos) {
     if (!(pu > 0)) semPreco.push(ch);
     cPaineis += linha(g.nome, g.m2, 'm²', n0(pu));
   }
+  // Consumíveis de oficina: percentagem sobre os materiais (0 se a tabela do trabalho não a tiver)
+  cap = 'consumiveis';
+  const pc = n0(precos.consumiveis);
+  const cCons = pc > 0 && cMaterial + cPaineis > 0 ? linha('Consumíveis (fio, gás, discos)', pc, '%', (cMaterial + cPaineis) / 100) : 0;
   // Acessórios
+  cap = 'ferragens';
   let cAcess = 0;
   for (const a of res.acessorios) {
     const pu = precos.acessorios && precos.acessorios[a.ref];
@@ -75,10 +81,12 @@ export function custo(trabalho, res, plano, precos) {
     cAcess += linha(nomeAcessorio(a), a.qtd, (ACESSORIOS[a.ref] || {}).un || 'un', n0(pu) * (a.fator > 0 ? a.fator : 1));
   }
   // Mão de obra de oficina
+  cap = 'oficina';
   const manual = trabalho.horasOficina;
   const oficinaH = manual !== null && manual !== undefined && manual !== '' && Number.isFinite(+manual) && +manual >= 0 ? +manual : horasEstimadas(res);
   const cOficina = linha('Mão de obra de oficina', oficinaH, 'h', n0(precos.horaOficina));
   // Acabamento
+  cap = 'tratamento';
   const acab = acabamentoDe(material, trabalho.acabamento), pa = precos.acabamento || {};
   const m2 = superficieM2(res), kg = pesoKg(res, material);
   let cAcab = 0;
@@ -86,15 +94,17 @@ export function custo(trabalho, res, plano, precos) {
   else if (acab.modo === 'kg') cAcab = linha(`Acabamento: ${acab.nome}`, kg, 'kg', n0(pa[acab.id]));
   else if (acab.modo === 'ambos') cAcab = linha('Galvanização', kg, 'kg', n0(pa.galvanizado)) + linha('Lacagem', m2, 'm²', n0(pa.lacado));
   // Montagem e deslocação
+  cap = 'montagem';
   const hM = n0(trabalho.horasMontagem);
   const cMont = linha('Montagem em obra', hM, 'h', n0(precos.horaMontagem));
+  cap = 'deslocacao';
   const cDesl = trabalho.semDeslocacao ? 0 : linha('Deslocação', 1, 'un', n0(precos.deslocacao));
 
-  const total = cMaterial + cPaineis + cAcess + cOficina + cAcab + cMont + cDesl;
+  const total = cMaterial + cPaineis + cCons + cAcess + cOficina + cAcab + cMont + cDesl;
   const margem = Number.isFinite(+trabalho.margem) && trabalho.margem !== '' && trabalho.margem !== null ? +trabalho.margem : n0(precos.margem);
   const venda = total * (1 + margem / 100);
   const iva = venda * n0(precos.iva) / 100;
-  return { material: cMaterial, paineis: cPaineis, acessorios: cAcess, oficinaH, oficina: cOficina, acabamento: cAcab,
+  return { material: cMaterial, paineis: cPaineis, consumiveis: cCons, acessorios: cAcess, oficinaH, oficina: cOficina, acabamento: cAcab,
     montagem: cMont, deslocacao: cDesl, total, margem, venda, iva, vendaIva: venda + iva, linhas,
     semPreco: [...new Set(semPreco)], pesoKg: kg, superficieM2: m2 };
 }
@@ -103,4 +113,17 @@ export function custo(trabalho, res, plano, precos) {
 export function nomeAcessorio(a) {
   const nome = (ACESSORIOS[a.ref] || {}).nome || a.ref;
   return a.sufixo ? nome.replace(/\s*\(preço para DN50\)/, '') + ' ' + a.sufixo : nome;
+}
+
+const CAPITULOS = [['materiais', 'Materiais'], ['ferragens', 'Ferragens e fixação'], ['tratamento', 'Tratamento e acabamento'], ['consumiveis', 'Consumíveis de oficina'],
+  ['oficina', 'Mão de obra de oficina'], ['montagem', 'Montagem em obra'], ['deslocacao', 'Deslocação']];
+/** Custo arrumado por capítulos (só os que têm valor), com a percentagem de cada um no total. */
+export function capitulos(c) {
+  const lista = [];
+  for (const [id, nome] of CAPITULOS) {
+    const linhas = (c.linhas || []).filter(l => l.cap === id && l.total !== 0);
+    const total = linhas.reduce((s, l) => s + l.total, 0);
+    if (linhas.length && total > 0) lista.push({ n: lista.length + 1, id, nome, total, pct: c.total > 0 ? total / c.total * 100 : 0, linhas });
+  }
+  return lista;
 }
