@@ -50,7 +50,7 @@ function descricao(trabalho, res) {
   if (trabalho.tipo === 'escada') return `Escada reta com ${res.escada.degraus} degraus em ${res.escada.gradil ? 'gradil' : 'chapa lacrimada'} (espelho ${dec(res.escada.espelho, 0)} mm, cobertor ${dec(res.escada.cobertor, 0)} mm), ${mm(res.largura)} de largura e ${mm(res.altura)} de desnível${res.escada.central ? ', sobre viga central' : ''}${res.escada.patamar ? ', com patamar de ' + mm(res.escada.patamar) + (res.escada.emL ? ' × ' + mm(res.escada.patamarLargura) + ' em L' : '') : ''}${res.escada.guardas ? ', com guarda de barras verticais ' + (res.escada.guardas === 2 ? 'dos dois lados' : 'de um lado') : ''}.`;
   if (trabalho.tipo === 'grade') return `${res.unidades > 1 ? res.unidades + ' grades fixas' : 'Grade fixa'} de ${mm(res.largura)} × ${mm(res.altura)}, em varões verticais, com patas de fixação.`;
   if (trabalho.tipo === 'telheiro') { const cb = { sandwich: 'cobertura em painel sandwich', trapezoidal: 'cobertura em chapa trapezoidal', ripado: 'ripado', nenhuma: 'sem cobertura' }[m.cobertura] || '';
-    return `${+res.pendente ? 'Telheiro' : 'Pérgula'} com ${mm(res.comprimentoTotal)} × ${mm(res.largura)} e ${mm(res.altura)} de altura livre, ${cb}${m.apoio === 'parede' ? ', encostado à parede' : ''}.`; }
+    return `${+res.pendente ? 'Telheiro' + (res.aguas === 2 ? ' de duas águas' : '') : 'Pérgula'} com ${mm(res.comprimentoTotal)} × ${mm(res.largura)} e ${mm(res.altura)} de altura livre, ${cb}${m.apoio === 'parede' ? ', encostado à parede' : ''}.`; }
   const tp = { batente1: 'de batente com 1 folha', batente2: 'de batente com 2 folhas', correr: 'de correr' }[m.tipo] || '';
   return `Portão ${tp}, ${mm(m.largura)} × ${mm(res.altura)}${e}${m.motor ? ', preparado para motor' : ''}.`;
 }

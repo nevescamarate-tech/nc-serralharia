@@ -141,6 +141,7 @@ CAMPOS.telheiro = [
   N('largura', 'Largura (profundidade, no sentido da água)'),
   N('altura', 'Altura livre à frente (lado baixo)'),
   N('pendente', 'Pendente (0 para pérgula plana)', { un: '%', livre: true }),
+  S('aguas', 'Águas', { uma: 'Uma água (cai para a frente)', duas: 'Duas águas (cumeeira a meio)' }),
   S('apoio', 'Apoio', { pilares: 'Duas filas de pilares', parede: 'Encostado à parede (pilares só à frente)' }),
   S('cobertura', 'Cobertura', { sandwich: 'Painel sandwich', trapezoidal: 'Chapa trapezoidal', ripado: 'Ripado (pérgula, sem chapa)', nenhuma: 'Só a estrutura' }),
   P('pPilar', 'Perfil dos pilares', ['tq', 'tret', 'tr'], { av: true }),

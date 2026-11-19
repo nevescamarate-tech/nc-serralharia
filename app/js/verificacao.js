@@ -103,9 +103,10 @@ export function verificar(trabalho, res) {
     const md = de('madre').concat(de('ripa'));
     if (md.length) { const zs = [...new Set(md.map(p => Math.round(p.a[2])))].sort((a, b) => a - b), af = zs.length > 1 ? Math.max(...zs.slice(1).map((z, i) => z - zs[i])) : res.largura;
       junta(viga(md[0].grupo === 'ripa' ? 'Ripa' : 'Madre', md[0], md[0].t, md[0].p, w * af, ws * af, vao, mat)); }
-    if (vg.length) junta(viga('Viga', vg[0], vg[0].t, vg[0].p, w * vao, ws * vao, res.largura, mat));
+    if (vg.length) junta(viga(res.aguas === 2 ? 'Viga (meia largura)' : 'Viga', vg[0], vg[0].t, vg[0].p, w * vao, ws * vao, res.aguas === 2 ? res.largura / 2 : res.largura, mat));
     const pl = de('pilar');
     if (pl.length) junta(pilar('Pilar', pl[0], w * vao * (res.largura + 400) / 2, 2 * Math.max(...pl.map(p => p.L)), mat));
+    if (res.aguas === 2) notas.push('Duas águas: cada viga é verificada entre o pilar e a cumeeira; a linha entre pilares, que segura o impulso, não está verificada.');
     notas.push('Vigas e madres como simplesmente apoiadas. Pilar com comprimento de encurvadura igual a 2 × a altura (sem contraventamento).', 'O vento (incluindo a sucção, que levanta a cobertura) não está considerado.');
   } else if (tipo === 'escada') {
     const q = num(v.escada, DEF_VERIF.escada) / 1000, g = 0.5 / 1000, bz = de('banzo'); if (!bz.length) return null;

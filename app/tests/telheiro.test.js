@@ -95,3 +95,31 @@ test('preparação: posições com pilar, viga, madre e cobertura; folha com al�
   const tx = folhaPreparacao({ id: 'o', nome: 'Obra', numero: '1', trabalhos: [t] }, t, res, planoCorte(res.pecas), '', {}).replace(/<[^>]+>/g, ' ').toLowerCase();
   for (const p of ['alçado frontal', 'alçado lateral', 'planta', 'placa de base', 'a calcular', 'painel sandwich']) ok(tx.includes(p), 'falta «' + p + '»');
 });
+
+// --- duas águas ---
+test('duas águas: pilares todos iguais, duas vigas por pórtico a encontrar-se na cumeeira, e uma linha entre pilares', () => {
+  const r = base({ aguas: 'duas', pendente: 20 }), vg = de(r, 'viga');
+  eq(new Set(de(r, 'pilar').map(p => p.L)).size, 1); eq(vg.length, 6); eq(de(r, 'linha').length, 3);
+  for (const v of vg) ok(Math.abs(v.a[2] - 2100) < 0.1 || Math.abs(v.b[2] - 2100) < 0.1, 'cada viga toca a cumeeira a meio');
+  perto(vg[0].L, (2100 + 200) / Math.cos(Math.atan(0.2)) + 100 / 2 * 0.2, 1);
+  perto(r.alturaAlta, 3000 + 2100 * 0.2, 0.5); eq(r.aguas, 2); perto(de(r, 'linha')[0].L, 4200 - 160, 0.5);
+  ok(semNaN(r));
+});
+test('duas águas: madres espelhadas, dois panos de cobertura e remate de cumeeira', () => {
+  const r = base({ aguas: 'duas', pendente: 20 }), zs = [...new Set(de(r, 'madre').map(p => Math.round(p.a[2])))].sort((a, b) => a - b);
+  for (let i = 0; i < zs.length / 2; i++) perto(zs[i] + zs[zs.length - 1 - i], 4200, 1.5);
+  const sobe = r.paineis.filter(p => p.v[1] > 0), desce = r.paineis.filter(p => p.v[1] < 0);
+  eq(sobe.length, desce.length); ok(sobe.length >= 8);
+  perto(r.paineis.reduce((s, p) => s + p.w * p.h, 0) / 1e6, (7200 + 400) * (4200 + 400) / Math.cos(Math.atan(0.2)) / 1e6, 0.05);
+  perto(qtd(r, 'cumeeira'), 7.6, 0.01); eq(qtd(base(), 'cumeeira'), 0);
+});
+test('duas águas ignora o apoio na parede e avisa; custo e verificação funcionam', async () => {
+  const r = base({ aguas: 'duas', apoio: 'parede' });
+  eq(de(r, 'pilar').length, 6); eq(de(r, 'vigap').length, 0); ok(r.avisos.some(a => /duas águas/i.test(a)));
+  const { verificar } = await import('../js/verificacao.js');
+  const t = m => ({ tipo: 'telheiro', medidas: { comp: 7200, largura: 4200, altura: 3000, vaoMax: 3600, ...m }, material: 'aco', acabamento: 'galvanizado', margem: 30, horasOficina: null, horasMontagem: 16 });
+  const v2 = verificar(t({ aguas: 'duas' }), calcular(t({ aguas: 'duas' }))), v1 = verificar(t({}), calcular(t({})));
+  ok(v2.linhas[1].ratio < v1.linhas[1].ratio / 3, 'meia largura dá um quarto do momento');
+  const res = calcular(t({ aguas: 'duas' })), c = custo(t({ aguas: 'duas' }), res, planoCorte(res.pecas), JSON.parse(JSON.stringify(PRECOS_EXEMPLO)));
+  eq(c.semPreco, []); ok(semNaN(c));
+});

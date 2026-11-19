@@ -107,7 +107,7 @@ ${avisosHtml ? `<div class="a3-avisos">${avisosHtml}</div>` : ""}</div>
     const lat = { ...res, paineis: [], cotas: res.cotasLateral, pontos: (res.pontos || []).filter(p => p.sl).map(p => ({ ...p, s: p.sl })),
       pecas: res.pecas.filter(p => p.sl).map(p => { const c = { ...p, s: p.sl, ts: p.tl }; refsL.set(c, refDe.get(p)); return c; }) };
     corpo2 = `${vista('Alçado frontal', alc, 392, 92, e2)}<div class="a3-g3">${
-      vista('Alçado lateral', alcadoSVG(lat, { fino: true, refs: refsL }), 125, 92, e2, `Pendente ${virg(res.pendente)} % · topo atrás a ≈ ${Math.round(res.alturaAlta)} mm.`)}${
+      vista('Alçado lateral', alcadoSVG(lat, { fino: true, refs: refsL }), 125, 92, e2, `Pendente ${virg(res.pendente)} % · ${res.aguas === 2 ? 'cumeeira' : 'topo atrás'} a ≈ ${Math.round(res.alturaAlta)} mm.`)}${
       vista('Planta da estrutura', pla, 150, 92, e2, 'Sem a cobertura.')}${pe ? vista('Pormenor 1 — ' + pe.titulo.toLowerCase(), pe.svg, 90, 78, e2, pe.nota) : ''}</div>`;
   } else if (alto(alc)) {   // peça alta (portão, escada): alçado à esquerda, a toda a altura; o resto à direita
     const frente = res.escada && topo ? vista('Vista frontal (do pé da escada)', topo.svg, 180, 62, e2) : '';

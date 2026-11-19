@@ -7,7 +7,7 @@ const arred = (v, c = 1) => Math.round(v * 10 ** c) / 10 ** c;
 const GRUPOS = {
   corrimao: ['C', 'Corrimão'], prumo: ['P', 'Prumo'], pilar: ['PL', 'Pilar'], aro: ['A', 'Aro da folha'], travessa: ['T', 'Travessa'],
   varao: ['V', 'Varão'], barra: ['B', 'Barra horizontal'], lamina: ['L', 'Lâmina'], tubo: ['TB', 'Troço de tubo'],
-  viga: ['VG', 'Viga'], vigap: ['VP', 'Viga de parede'], madre: ['M', 'Madre'], ripa: ['R', 'Ripa'],
+  viga: ['VG', 'Viga'], linha: ['LN', 'Linha (tirante entre pilares)'], vigap: ['VP', 'Viga de parede'], madre: ['M', 'Madre'], ripa: ['R', 'Ripa'],
   chapa: ['CH', 'Chapa de enchimento'], vidro: ['VD', 'Vidro laminado'], sandwich: ['CB', 'Painel de cobertura'], trapezoidal: ['CB', 'Chapa de cobertura'],
   chata: ['BC', 'Barra chata de base'], longarina: ['LG', 'Longarina do patamar'], gradil: ['GR', 'Gradil'], base: ['B', 'Quadro de base'], topo: ['TP', 'Quadro de topo'], ombreira: ['J', 'Ombreira da porta'], padieira: ['JP', 'Padieira da porta'],
   banzo: ['BZ', 'Banzo ou viga da escada'], suporte: ['S', 'Suporte de degrau'], lacrimada: ['D', 'Degrau (planificado)'], piso: ['F', 'Piso em chapa lacrimada'], parede: ['W', 'Revestimento de parede'],

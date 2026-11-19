@@ -4,7 +4,7 @@ import { dims, PERFIS } from '../catalogo.js';
 import { num, numLivre, reparte, arred, vazio, peca, sacoAcessorios } from './util.js';
 
 export const DEF_TELHEIRO = {
-  comp: '', largura: '', altura: 2500, pendente: 5, apoio: 'pilares', cobertura: 'sandwich',
+  comp: '', largura: '', altura: 2500, pendente: 5, aguas: 'uma', apoio: 'pilares', cobertura: 'sandwich',
   pPilar: 'tq80x3', pViga: 'tret100x50x3', pMadre: 'tret60x40x2', vaoMax: 3500, maxMadres: 1000, beiral: 200,
 };
 const perfilOu = (id, def) => (PERFIS[id] ? id : def);
@@ -23,7 +23,7 @@ export function calcTelheiro(medidas = {}) {
   const aP = dims(pPil).a, dV = dims(pVig), dM = dims(pMad), hV = dV.a, bV = dV.b, hM = dM.a, bM = dM.b;
   const vaoMax = Math.min(6000, Math.max(1000, num(m.vaoMax, DEF_TELHEIRO.vaoMax)));
   const maxMad = Math.max(50, num(m.maxMadres, DEF_TELHEIRO.maxMadres)), beiral = Math.min(1500, Math.max(0, numLivre(m.beiral)));
-  const parede = m.apoio === 'parede', ripado = m.cobertura === 'ripado', cob = COBERTURAS[m.cobertura] ? m.cobertura : null;
+  const duas = m.aguas === 'duas', parede = m.apoio === 'parede' && !duas, ripado = m.cobertura === 'ripado', cob = COBERTURAS[m.cobertura] ? m.cobertura : null;
   const comMadres = ripado || !!cob;
 
   const r = vazio(['Estrutura por dimensionar: as secções, as fundações e as ligações têm de ser verificadas por técnico habilitado (vento, neve e peso da cobertura).']);
@@ -37,7 +37,8 @@ export function calcTelheiro(medidas = {}) {
     else { p.s = [a[0], a[1], b[0], b[1]]; p.ts = w; p.sl = [a[2], a[1], b[2], b[1]]; p.tl = w; p.t = w; }
     r.pecas.push(p); return p;
   };
-  const yInf = z => H + z * tan;                       // face inferior da viga
+  // face inferior da viga: uma água sobe da frente para trás; duas águas sobem das duas margens até à cumeeira, a meio
+  const yInf = z => H + (duas ? W / 2 - Math.abs(z - W / 2) : z) * tan;
   const yEixo = z => yInf(z) + hV / (2 * cos);         // eixo da viga
   const yMadre = z => yInf(z) + hV / cos + hM / 2;     // eixo da madre, pousada na viga
 
@@ -53,8 +54,16 @@ export function calcTelheiro(medidas = {}) {
   };
   for (const x of xs) {
     pilar(x, zF); if (!parede) pilar(x, zT);
-    junta('viga', pVig, [x, yEixo(z0), z0], [x, yEixo(z1), z1], hV, bV, { L: (z1 - z0) / cos });
-    ac.junta('tampa', parede ? 1 : 2); if (parede) r.ligacoes += 1;
+    if (duas) {
+      // duas vigas por pórtico, a encontrar-se na cumeeira, e uma linha entre os pilares a segurar o impulso
+      junta('viga', pVig, [x, yEixo(z0), z0], [x, yEixo(W / 2), W / 2], hV, bV, { L: (W / 2 - z0) / cos + hV / 2 * tan, ang: [0, graus] });
+      junta('viga', pVig, [x, yEixo(W / 2), W / 2], [x, yEixo(z1), z1], hV, bV, { L: (z1 - W / 2) / cos + hV / 2 * tan, ang: [graus, 0] });
+      junta('linha', pVig, [x, yInf(zF) - hV / 2, zF + aP / 2], [x, yInf(zF) - hV / 2, zT - aP / 2], hV, bV);
+      ac.junta('tampa', 2); r.ligacoes += 4;
+    } else {
+      junta('viga', pVig, [x, yEixo(z0), z0], [x, yEixo(z1), z1], hV, bV, { L: (z1 - z0) / cos });
+      ac.junta('tampa', parede ? 1 : 2); if (parede) r.ligacoes += 1;
+    }
   }
   if (parede) {
     const zp = W - bV / 2;
@@ -65,7 +74,10 @@ export function calcTelheiro(medidas = {}) {
   // Madres ou ripas: ao comprido, emendadas sobre as vigas para caberem na vara
   const xa = -beiral, xb = L + beiral;
   if (comMadres) {
-    const largo = z1 - z0, n = reparte(largo - bM, maxMad);
+    // posições das madres ao longo da largura: numa água, de ponta a ponta; em duas, espelhadas em relação à cumeeira
+    const meio = duas ? W / 2 - z0 : z1 - z0, n = reparte(meio - bM, maxMad);
+    const lado = Array.from({ length: n + 1 }, (_, k) => z0 + bM / 2 + k * (meio - bM) / n);
+    const zsMad = duas ? [...lado, ...lado.map(z => W - z).reverse()] : lado;
     const cortes = [xa];
     while (xb - cortes[cortes.length - 1] > VARA) {
       const ini = cortes[cortes.length - 1], cand = xs.filter(x => x > ini + 1 && x - ini <= VARA);
@@ -73,22 +85,27 @@ export function calcTelheiro(medidas = {}) {
       cortes.push(cand[cand.length - 1]);
     }
     cortes.push(xb);
-    for (let k = 0; k <= n; k++) {
-      const z = z0 + bM / 2 + k * (largo - bM) / n, y = yMadre(z);
+    for (const z of zsMad) {
+      const y = yMadre(z);
       for (let i = 0; i < cortes.length - 1; i++) junta(ripado ? 'ripa' : 'madre', pMad, [cortes[i], y, z], [cortes[i + 1], y, z], hM, bM);
       r.ligacoes += xs.length;
     }
   }
-  // Cobertura em painéis de 1 m de largura útil, inteiros no sentido da pendente
+  // Cobertura em painéis de 1 m de largura útil, inteiros no sentido da pendente (um pano por água)
   if (cob) {
-    const esp = COBERTURAS[cob].esp, S = arred((z1 - z0) / cos), total = xb - xa, n = Math.ceil(total / PAINEL - 1e-9);
+    const esp = COBERTURAS[cob].esp, total = xb - xa, n = Math.ceil(total / PAINEL - 1e-9);
     const yTopo = z => yInf(z) + hV / cos + hM;
-    for (let k = 0; k < n; k++) {
-      const x = xa + k * PAINEL, w = arred(Math.min(PAINEL, xb - x));
-      r.paineis.push({ grupo: cob, esp, w, h: S, o: [x, yTopo(z0), z0], u: [1, 0, 0], v: [0, tan * cos, cos], plano: true, dy: 0,
-        s: [x, yTopo(z0), x + w, Math.max(yTopo(z1), yTopo(z0) + Math.max(esp, 20))] });
+    const panos = duas ? [[z0, W / 2, 1], [W / 2, z1, -1]] : [[z0, z1, 1]];
+    for (const [za, zb, sobe] of panos) {
+      const S = arred((zb - za) / cos), ya = yTopo(za), yb = yTopo(zb);
+      for (let k = 0; k < n; k++) {
+        const x = xa + k * PAINEL, w = arred(Math.min(PAINEL, xb - x));
+        r.paineis.push({ grupo: cob, esp, w, h: S, o: [x, ya, za], u: [1, 0, 0], v: [0, sobe * tan * cos, cos], plano: true, dy: 0,
+          s: [x, Math.min(ya, yb), x + w, Math.max(ya, yb, Math.min(ya, yb) + Math.max(esp, 20))] });
+      }
+      ac.junta('parafuso_cob', Math.ceil(total * S / 1e6 * 6));
     }
-    ac.junta('parafuso_cob', Math.ceil(total * S / 1e6 * 6));
+    if (duas) ac.junta('cumeeira', arred(total / 1000, 2));
   }
 
   for (let k = 0; k < nx; k++) r.cotas.push({ tipo: 'h', nivel: 1, s1: xs[k], s2: xs[k + 1], texto: String(Math.round(xs[k + 1] - xs[k])) });
@@ -97,6 +114,7 @@ export function calcTelheiro(medidas = {}) {
   r.cotasLateral = [{ tipo: 'h', nivel: 1, s1: 0, s2: W, texto: String(Math.round(W)) }, { tipo: 'v', y1: 0, y2: H, texto: String(Math.round(H)) }];
   r.trocosPlanta.push({ a: [0, 0], b: [L, 0], texto: String(Math.round(L)) }, { a: [0, W], b: [0, 0], texto: String(Math.round(W)) });
   r.acessorios = ac.lista();
-  r.altura = H; r.alturaAlta = arred(H + W * tan); r.pendente = pend; r.comprimentoTotal = L; r.largura = W; r.telheiro = true;
+  if (duas && m.apoio === 'parede') r.avisos.push('Com duas águas o telheiro fica sobre duas filas de pilares; o apoio na parede não se aplica.');
+  r.altura = H; r.alturaAlta = arred(H + (duas ? W / 2 : W) * tan); r.aguas = duas ? 2 : 1; r.pendente = pend; r.comprimentoTotal = L; r.largura = W; r.telheiro = true;
   return r;
 }
