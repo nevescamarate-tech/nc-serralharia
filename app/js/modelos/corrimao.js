@@ -1,5 +1,5 @@
 import { dims, PERFIS } from '../catalogo.js';
-import { num, numLivre, reparte, hip, arred, vazio, peca, sacoAcessorios } from './util.js';
+import { num, numLivre, reparte, hip, arred, vazio, peca, sacoAcessorios, deitado } from './util.js';
 
 export const DEF_CORRIMAO = {
   comp: '', desnivel: 0, altura: 900, tubo: 'tr42x2', montagem: 'parede', pPrumo: 'tr42x2',
@@ -15,14 +15,14 @@ export function calcCorrimao(medidas = {}) {
   const altura = num(m.altura, DEF_CORRIMAO.altura), max = Math.max(200, num(m.maxSuportes, DEF_CORRIMAO.maxSuportes));
   const desnivel = numLivre(m.desnivel);
   const tubo = PERFIS[m.tubo] ? m.tubo : DEF_CORRIMAO.tubo, pPrumo = PERFIS[m.pPrumo] ? m.pPrumo : DEF_CORRIMAO.pPrumo;
-  const d = dims(tubo).a, aP = dims(pPrumo).a;
+  const fC = deitado(tubo), d = fC.t, aP = dims(pPrumo).a;
   const curva = m.extremidade === 'curva';
   const r = vazio(), ac = sacoAcessorios();
   const y = u => altura - d / 2 + desnivel * u / comp;   // eixo do tubo; a altura é ao topo
   const angInc = arred(Math.abs(Math.atan2(desnivel, comp)) * 180 / Math.PI);
 
   r.pecas.push(peca('corrimao', tubo, [0, y(0), 0], [comp, y(comp), 0], [0, y(0), comp, y(comp)],
-    { L: hip(comp, desnivel) + (curva ? 2 * CURVA : 0) }));
+    { L: hip(comp, desnivel) + (curva ? 2 * CURVA : 0), ...fC }));
   ac.junta(curva ? 'curva90' : 'tampa', 2);
 
   let nos;

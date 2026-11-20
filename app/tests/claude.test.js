@@ -1,5 +1,5 @@
 import { test, eq, ok } from './t.js';
-import { MODELO, catalogoParaPrompt, construirPedido, medidasValidas, interpretarResposta, pedirSolucao } from '../js/claude.js';
+import { MODELO, catalogoParaPrompt, construirPedido, medidasValidas, interpretarResposta, pedirSolucao, pedidoParaColar, interpretarColado, resumoProposta } from '../js/claude.js';
 import { calcular } from '../js/calc.js';
 
 const IMG = 'data:image/jpeg;base64,/9j/AAAA';
@@ -47,6 +47,68 @@ test('respostas más não rebentam: recusa, corte, texto que não é JSON, tipo 
   ok(interpretarResposta(resposta({ ...boa, solucao: { ...boa.solucao, tipo: 'foguetao' } })).erro);
   ok(interpretarResposta({ type: 'error', error: { message: 'x' } }).erro); ok(interpretarResposta(null).erro);
 });
+// --- sem chave: copiar o pedido para a conversa do Claude e colar a resposta ---
+test('pedido para copiar: leva o catálogo, o que o serralheiro escreveu e o formato da resposta, sem chave nem dados da obra', () => {
+  const p = pedidoParaColar('Varanda com 3,2 m, cliente quer vidro');
+  for (const x of ['guarda — Guarda', 'comprimento_total', 'Varanda com 3,2 m, cliente quer vidro', '"solucao"', '"alternativas"', '"a_confirmar"', '"observacoes"', '```json']) ok(p.includes(x), 'falta ' + x);
+  ok(/fotografia/i.test(p)); ok(!p.includes('abrigo —')); ok(!/sk-ant|x-api-key/.test(p));
+  ok(pedidoParaColar('').length > 500, 'sem texto continua a dar um pedido utilizável');
+});
+test('resposta colada: lê o JSON dentro de um bloco de código, com conversa à volta', () => {
+  const r = interpretarColado('Claro, aqui está a proposta:\n\n```json\n' + JSON.stringify(boa, null, 2) + '\n```\n\nSe quiser outra alternativa, diga {assim}.');
+  ok(r.ok); eq(r.solucao.tipo, 'guarda'); eq(r.solucao.medidas, { trocos: [{ comp: 3200, desnivel: 0, viragem: 0 }], altura: 1100, enchimento: 'vidro' });
+  eq(r.alternativas.length, 1); eq(r.aConfirmar, ['Comprimento real da varanda']); eq(r.observacoes, 'Altura mínima a confirmar.');
+});
+test('resposta colada: aceita JSON sem bloco e com aspas curvas do telemóvel', () => {
+  ok(interpretarColado(JSON.stringify(boa)).ok);
+  const curvas = JSON.stringify(boa).replace(/"/g, (m, i) => (i % 2 ? '”' : '“'));
+  const r = interpretarColado('Resposta: ' + curvas); ok(r.ok, r.erro); eq(r.solucao.nome, 'Guarda da varanda');
+});
+test('resposta colada má: vazio, texto sem JSON, JSON partido e tipo desconhecido dão erro claro, sem rebentar', () => {
+  ok(/cole/i.test(interpretarColado('').erro)); ok(/cole/i.test(interpretarColado(null).erro));
+  ok(/não foi possível/i.test(interpretarColado('Olá, não consigo ver a fotografia.').erro));
+  ok(interpretarColado('```json\n{"solucao": {"tipo": "guarda", \n```').erro);
+  ok(interpretarColado(JSON.stringify({ ...boa, solucao: { ...boa.solucao, tipo: 'foguetao' } })).erro);
+  ok(interpretarColado('[1,2,3]').erro); ok(interpretarColado('{}').erro);
+});
+test('a resposta colada e a resposta da API dão exatamente o mesmo resultado', () => {
+  eq(interpretarColado('```json\n' + JSON.stringify(boa) + '\n```'), interpretarResposta(resposta(boa)));
+});
+
+// --- trabalho livre: quando nenhum tipo serve, o Claude devolve a lista de peças ---
+const livre = { solucao: { tipo: 'livre', nome: 'Suporte de máquina', razao: 'Não cabe em nenhum tipo.', medidas: [],
+  pecas: [{ nome: 'Pernas', perfil: 'tq60x3', comp: '850', qtd: '4', c1: '90', c2: '90' }, { nome: 'Travessas', perfil: 'tret60x40x2', comp: 1200, qtd: 2, c1: 45, c2: 45 }, { nome: 'Inventada', perfil: 'hea200', comp: '500', qtd: '1' }, { nome: 'Sem medida', perfil: 'tq40x2', comp: '', qtd: '2' }],
+  chapas: [{ nome: 'Tampo', tipo: 'chapa', esp: '5', larg: '1300', alt: '700', qtd: '1' }, { nome: 'Má', tipo: 'titânio', esp: '5', larg: '10', alt: '10', qtd: '1' }],
+  outros: [{ nome: 'Rodas com travão', qtd: '4' }] }, alternativas: [], a_confirmar: ['Peso da máquina'], observacoes: '' };
+test('o catálogo explica o trabalho livre: quando usar, os códigos de perfil e os tipos de chapa', () => {
+  const c = catalogoParaPrompt();
+  for (const p of ['livre — Trabalho livre', 'tq60x3', 'tret60x40x2', 'barra40x5', 'lacrimada', 'pecas', 'chapas', 'outros', 'ponta mais comprida']) ok(c.includes(p), 'falta ' + p);
+  ok(/não couber em nenhum/i.test(c)); ok(!c.includes('tu50x2'), 'os tubos de tubagem não entram na lista do trabalho livre');
+  const s = construirPedido({ texto: 'x' }).output_config.format.schema.properties.solucao;
+  ok(s.properties.tipo.enum.includes('livre')); for (const k of ['pecas', 'chapas', 'outros']) { eq(s.properties[k].type, 'array'); ok(s.required.includes(k)); }
+  ok(pedidoParaColar('x').includes('"pecas"'));
+});
+test('proposta de trabalho livre: fica a lista de peças válida, e o que a app não conhece é posto de lado e dito', () => {
+  const r = interpretarColado(JSON.stringify(livre)); ok(r.ok, r.erro);
+  eq(r.solucao.tipo, 'livre');
+  eq(r.solucao.medidas.pecas, [{ nome: 'Pernas', perfil: 'tq60x3', comp: 850, qtd: 4, c1: 90, c2: 90 }, { nome: 'Travessas', perfil: 'tret60x40x2', comp: 1200, qtd: 2, c1: 45, c2: 45 }]);
+  eq(r.solucao.medidas.chapas, [{ nome: 'Tampo', tipo: 'chapa', esp: 5, larg: 1300, alt: 700, qtd: 1 }]);
+  eq(r.solucao.medidas.outros, [{ nome: 'Rodas com travão', qtd: 4, preco: '' }]); eq(r.solucao.medidas.ferragens, []);
+  eq(r.solucao.ignorados.length, 3); ok(r.solucao.ignorados.some(x => /Inventada/.test(x) && /hea200/.test(x)));
+  const res = calcular({ tipo: 'livre', medidas: r.solucao.medidas }); eq(res.pecas.length, 6); eq(res.paineis.length, 1); eq(res.avisos, []);
+  eq(interpretarResposta(resposta(livre)).solucao.medidas, r.solucao.medidas);
+});
+test('trabalho livre sem nenhuma peça válida não é proposta que sirva', () => {
+  ok(interpretarColado(JSON.stringify({ ...livre, solucao: { ...livre.solucao, pecas: [{ nome: 'x', perfil: 'nada', comp: '5', qtd: '1' }], chapas: [] } })).erro);
+  ok(interpretarColado(JSON.stringify({ ...livre, solucao: { tipo: 'livre', nome: 'x', razao: '', medidas: [] } })).erro);
+});
+test('resumo de uma proposta para o ecrã: medidas normais e lista do trabalho livre, sem «[object Object]»', () => {
+  const g = resumoProposta(interpretarColado(JSON.stringify(boa)).solucao);
+  eq(g, [['Comprimento', '3200 mm'], ['Altura da guarda', '1100 mm'], ['Enchimento', 'Vidro laminado']]);
+  const l = resumoProposta(interpretarColado(JSON.stringify(livre)).solucao);
+  eq(l, [['Pernas', '4 × Tubo quadrado 60×60×3 de 850 mm'], ['Travessas', '2 × Tubo retangular 60×40×2 de 1200 mm, cortes 45°/45°'], ['Tampo', '1 × Chapa lisa 5 mm de 1300 × 700 mm'], ['Rodas com travão', '4 un (preço por indicar)']]);
+});
+
 test('envio: cabeçalhos certos, chave só no cabeçalho, e nunca no endereço', async () => {
   const f = falso(200, resposta(boa)), r = await pedirSolucao(' sk-teste ', { texto: 'x', imagem: IMG }, f);
   ok(r.ok); eq(f.chamadas.length, 1);

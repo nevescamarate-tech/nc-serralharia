@@ -10,3 +10,8 @@ body { background: #fff !important; }
 .a3 { page: a3; margin: 0; box-shadow: none; break-after: page; break-inside: avoid; }
 .a3:last-child { break-after: auto; }
 * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.f-cliente { break-after: page; }
+.f-cliente:last-child { break-after: auto; }
+.f-cliente .f-des svg { max-height: 85mm; }
+.f-cliente .f-planta svg { max-height: 45mm; }
+.f-cliente .f-3d { max-height: 75mm; }

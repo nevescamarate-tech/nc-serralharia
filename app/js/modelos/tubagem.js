@@ -28,6 +28,7 @@ export function calcTubagem(medidas = {}) {
   if (!trocos.length) return vazio(avisos.length ? avisos : ['Introduza o comprimento do primeiro troço.']);
 
   const r = vazio(avisos), ac = sacoAcessorios();
+  r.arcos3d = []; r.curvas2d = [];
   let P = [0, 0, 0];
   trocos.forEach((t, i) => {
     const ant = i > 0 ? trocos[i - 1].d : null, seg = i < trocos.length - 1 ? trocos[i + 1].d : null;
@@ -42,14 +43,20 @@ export function calcTubagem(medidas = {}) {
       r.pecas.push(peca('tubo', perfil, P, Q, [...iso(P), ...iso(Q)], { L, t: de, p: de }));
       r.ligacoes += Math.ceil(L / VARA) - 1;                 // emendas em tubos maiores do que a vara
     }
-    if (curvaFim) { ac.junta('curva_inox'); r.ligacoes += 2; r.pontos.push({ tipo: 'curva', p: Q, s: iso(Q), r: de / 2 }); }
+    if (curvaFim) {
+      ac.junta('curva_inox'); r.ligacoes += 2; r.pontos.push({ tipo: 'curva', p: Q, s: iso(Q), r: de / 2 });
+      // eixo da curva com o raio verdadeiro (1,5 × DN), para o desenho e o 3D
+      const c = [0, 1, 2].map(k => Q[k] - t.d[k] * R + seg[k] * R), pts = [];
+      for (let k = 0; k <= 10; k++) { const a = Math.PI / 2 * k / 10; pts.push([0, 1, 2].map(j => arred(c[j] - seg[j] * R * Math.cos(a) + t.d[j] * R * Math.sin(a), 2))); }
+      r.arcos3d.push({ pts, r: de / 2 }); r.curvas2d.push({ pts: pts.map(iso), t: de });
+    }
     if (t.tes) { ac.junta('te_inox', t.tes); r.ligacoes += 2 * t.tes; }
     const vaos = reparte(t.comp, max);
     for (let k = i === 0 ? 0 : 1; k <= vaos; k++) {
       const u = t.comp * k / vaos, S = [P[0] + t.d[0] * u, P[1] + t.d[1] * u, P[2] + t.d[2] * u];
       ac.junta('abracadeira_inox'); r.pontos.push({ tipo: 'abracadeira', p: S, s: iso(S) });
     }
-    r.cotas.push({ tipo: 'l', a: iso(P), b: iso(Q), texto: String(Math.round(t.comp)) });
+    r.cotas.push({ tipo: 'l', a: iso(P), b: iso(Q), texto: String(Math.round(t.comp)), t: de });
     if (t.d[1] === 0) r.trocosPlanta.push({ a: [P[0], P[2]], b: [Q[0], Q[2]], texto: String(Math.round(t.comp)) });
     r.comprimentoTotal += t.comp;
     P = Q;

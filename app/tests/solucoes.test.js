@@ -29,9 +29,9 @@ test('comparar: ordenado do mais barato ao mais caro, e o preço da atual é o d
 });
 test('todos os tipos visíveis dão pelo menos duas soluções com preço; sem medidas não há nenhuma', () => {
   const m = { guarda: { trocos: [{ comp: 3000 }] }, guardamuro: { comp: 2970 }, corrimao: { comp: 3000 }, portao: { largura: 3000 }, tubagem: { dn: 50, trocos: [{ comp: 2000, dir: 'dir' }] },
-    telheiro: { comp: 6000, largura: 3000 }, grade: { largura: 1200, altura: 1000 }, gradeamento: { comp: 6000 }, escada: { desnivel: 2800 } };
+    telheiro: { comp: 6000, largura: 3000 }, grade: { largura: 1200, altura: 1000 }, gradeamento: { comp: 6000 }, escada: { desnivel: 2800 }, livre: { pecas: [{ nome: 'Pernas', perfil: 'tq60x3', comp: 850, qtd: 4 }] }, flangeada: { dn: 100, itens: [{ tipo: 'tubo', comp: 950, dir: 'dir' }] } };
   for (const tipo of Object.keys(TIPOS).filter(k => !TIPOS[k].oculto)) {
-    const l = compararSolucoes(tr(tipo, m[tipo], tipo === 'tubagem' ? { material: 'inox304', acabamento: 'nenhum' } : {}));
+    const l = compararSolucoes(tr(tipo, m[tipo], tipo === 'tubagem' || tipo === 'flangeada' ? { material: 'inox304', acabamento: 'nenhum' } : {}));
     ok(l.length >= 2, tipo + ': ' + l.length); ok(l.filter(x => x.atual).length === 1, tipo + ' sem atual'); ok(l.every(x => x.venda > 0 && !x.semPreco), tipo + ' sem preço');
   }
   eq(compararSolucoes(tr('guarda', { trocos: [{ comp: '' }] })), []); eq(variantes(tr('abrigo', {})), []);

@@ -23,12 +23,15 @@ test('total é a soma das parcelas', () => {
   perto(c.total, c.material + c.paineis + c.consumiveis + c.acessorios + c.oficina + c.acabamento + c.montagem + c.deslocacao, 0.01);
   ok(c.total > 0); ok(semNaN(c));
 });
-test('margem de 30% e IVA de 23%', () => {
+test('margem de 30% é sobre a venda: venda = custo ÷ 0,70, e IVA de 23%', () => {
   const { c } = caso();
-  perto(c.venda, c.total * 1.3, 0.01);
+  perto(c.venda, c.total / 0.7, 0.01); perto((c.venda - c.total) / c.venda, 0.3, 1e-9);
   perto(c.vendaIva, c.venda * 1.23, 0.01);
 });
 test('margem 0 vende ao custo', () => { const { c } = caso({ margem: 0 }); perto(c.venda, c.total, 0.01); });
+test('margem de 100 % ou mais não dá preço infinito: fica em 95 %', () => {
+  for (const m of [100, 150]) { const { c } = caso({ margem: m }); ok(semNaN(c)); perto(c.venda, c.total / 0.05, 0.01); eq(c.margem, 95); }
+});
 test('horas de oficina introduzidas à mão substituem a estimativa', () => {
   const { c } = caso({ horasOficina: 10 });
   eq(c.oficinaH, 10); perto(c.oficina, 10 * 28, 0.01);

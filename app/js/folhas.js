@@ -6,6 +6,8 @@ import { listaPosicoes, aprovisionamento, notasFabrico, escalaPara, pormenorVao,
 import { alcadoSVG, plantaSVG, vistaTopoSVG } from './desenho2d.js';
 import { TIPOS } from './calc.js';
 import { verificar } from './verificacao.js';
+import { T_INOX, T_FFD } from './modelos/flangeada.js';
+import { fichaTroco, tabelaLigacoes } from './fichas.js';
 
 function cabecalho(titulo, obra, empresa) {
   const e = empresa || {};
@@ -23,7 +25,7 @@ export function descricaoMaterial(trabalho) {
 }
 
 // ---------- folhas A3 de preparação ----------
-const LETRA_TIPO = { guarda: 'G', corrimao: 'C', portao: 'P', tubagem: 'T', telheiro: 'TL', grade: 'GR', escada: 'E', gradeamento: 'GM', abrigo: 'AB', guardamuro: 'GB' };
+const LETRA_TIPO = { guarda: 'G', corrimao: 'C', portao: 'P', tubagem: 'T', telheiro: 'TL', grade: 'GR', escada: 'E', gradeamento: 'GM', abrigo: 'AB', guardamuro: 'GB', livre: 'L', flangeada: 'F' };
 const virg = (v, c = 1) => String(Math.round(v * 10 ** c) / 10 ** c).replace('.', ',');
 
 /** Põe um SVG à escala normalizada que caiba na caixa (mm de papel). unidade = mm reais por unidade do viewBox. */
@@ -65,6 +67,7 @@ function blocoVaras(g) {
  */
 export function folhaPreparacao(obra, trabalho, res, plano, imagem3d, empresa, fotos = []) {
   const tipo = (TIPOS[trabalho.tipo] || {}).nome || '', e = empresa || {}, tub = !!res.dn;
+  if (res.livre) imagem3d = '';   // sem desenho automático não há conjunto 3D que valha
   const { posicoes, refDe } = listaPosicoes(res, trabalho.material);
   const ap = aprovisionamento(res, plano, trabalho.material, (trabalho.precos && +trabalho.precos.vara) || 6000);
   const idx = Math.max(0, (obra.trabalhos || []).findIndex(t => t.id === trabalho.id)) + 1;
@@ -96,7 +99,13 @@ ${avisosHtml ? `<div class="a3-avisos">${avisosHtml}</div>` : ""}</div>
   for (let i = CAB; i < posicoes.length; i += RESTO)
     nova('Lista de posições (continuação)', `<h3>Lista de posições (continuação)</h3>${tabelaPosicoes(posicoes.slice(i, i + RESTO))}`);
 
-  // 2 — vistas e pormenores
+  // 2 — vistas e pormenores (no trabalho livre: o rascunho fotografado, porque não há desenho automático)
+  const noRascunho = res.livre ? fotos.slice(0, 2) : [];
+  if (res.livre) nova('Rascunho e fotografias', `<h3>Rascunho e fotografias</h3>${noRascunho.length
+    ? `<div class="a3-rasc n${noRascunho.length}">${noRascunho.map(f => `<figure><img src="${esc(f.src)}" alt="">${f.legenda ? `<figcaption>${esc(f.legenda)}</figcaption>` : ''}</figure>`).join('')}</div>`
+    : '<p class="a3-n">Trabalho livre: a aplicação não desenha esta peça. Junte a fotografia do rascunho com as medidas (separador Medidas, «Juntar fotos») para ela sair nesta folha.</p>'}
+<p class="a3-n">As posições (P1, P2…, CH1…) são as da lista de posições da folha 1.</p>`);
+  fotos = fotos.slice(noRascunho.length);
   const e2 = new Set(), pe = pormenorAlmofada(res) || pormenorDegrau(res) || pormenorRasgo(res) || pormenorPe(res), vao = pormenorVao(res);
   const alc = alcadoSVG(res, { fino: true, refs: refDe }), pla = plantaSVG(res, { fino: true });
   const topo = tub || res.cotasLateral ? null : vistaTopoSVG(res, { fino: true });
@@ -118,7 +127,43 @@ ${avisosHtml ? `<div class="a3-avisos">${avisosHtml}</div>` : ""}</div>
     topo ? vista(topo.largura < 400 ? 'Corte A-A' : 'Vista lateral', topo.svg, 40, 78, e2) : ''}${
     vao ? vista('Pormenor 1 — vão tipo', vao, topo ? 110 : 125, 78, e2, 'Vão livre entre montantes e folgas do enchimento.') : ''}${
     pe ? vista(`Pormenor ${vao ? 2 : 1} — ` + pe.titulo.toLowerCase(), pe.svg, vao ? 80 : 180, 70, e2, pe.nota) : ''}</div>`;
-  nova(tub ? 'Isométrico e planta' : res.cotasLateral ? 'Alçados, planta e pormenores' : 'Alçado, planta e pormenores', corpo2, e2);
+  if (!res.livre) nova(tub ? 'Isométrico e planta' : res.cotasLateral ? 'Alçados, planta e pormenores' : 'Alçado, planta e pormenores', corpo2, e2);
+
+  // 2b — tubagem flangeada: troços, ligações com parafusaria e resumo de encomenda
+  if (res.flangeada) {
+    const fg = res.flangeada, pontas = t => t.ends.map(x => (typeof x === 'number' ? String(x) : '—')).join(' · ');
+    const COR = { 'inox-inox': '#5e9732', 'inox-FFD': '#e69500', 'ferro-ferro': '#8c8c8c' }, NOME = { 'inox-inox': 'inox – inox', 'inox-FFD': 'inox – ferro fundido', 'ferro-ferro': 'ferro – ferro' };
+    const aviso = '<p class="av"><b>MEDIDAS DE PROJETO – A CONFIRMAR EM OBRA.</b> Não fabricar nem encomendar troços por medida sem verificação no local.</p>';
+    const tTrocos = `<h3>Troços a fabricar</h3><table class="a3-t"><tr><th>Troço</th><th>Descrição</th><th>DN</th><th class="n">Comprimento (mm)</th><th>Ligações</th></tr>
+${fg.trocos.map(t => `<tr><td><b>${esc(t.id)}</b></td><td>${esc(t.nome)}</td><td>${esc(t.dn)}</td><td class="n">${esc(t.L)}</td><td>${esc(pontas(t))}${t.ends.filter(x => typeof x !== 'number').map(x => `<br><small>${esc(x.livre)}</small>`).join('')}</td></tr>`).join('')}</table>
+<p class="a3-n">Tubo reto: comprimento de flange a flange. Peças com curva: medidas ao eixo (curvas de raio 1,5 × DN).</p>
+${fg.equipamentos.length ? `<h3>Equipamentos na linha (fornecimento à parte)</h3><table class="a3-t"><tr><th>Equipamento</th><th>DN</th><th class="n">Face a face (mm)</th><th>Ligações</th></tr>
+${fg.equipamentos.map(q => `<tr><td>${esc(q.nome)}</td><td>DN${q.dn} PN${fg.pn}</td><td class="n">${Math.round(q.comp)}</td><td>${q.ligs.join(' · ')}</td></tr>`).join('')}</table>` : ''}`;
+    const linhaLig = l => `<tr><td><b style="color:${COR[l.tipo]}">${l.n}</b></td><td>${NOME[l.tipo]}</td><td>${esc(l.entre[0])} ↔ ${esc(l.entre[1])}</td><td>DN${l.dn} PN${l.pn}<br><small>Ø${l.flange.D} · K ${l.flange.K} · ${l.flange.n} furos Ø${l.flange.h}</small></td>
+<td>${l.kit ? `<b>Kit de isolamento</b>: junta isolante + ${l.flange.n} mangas + ${2 * l.flange.n} anilhas isolantes` : 'Junta plana EPDM e=3 (água potável)'}</td><td><b>${l.parafuso.n} × M${l.parafuso.M} × ${l.parafuso.L}</b> A4-70<br><small>${l.parafuso.n} porcas + ${2 * l.parafuso.n} anilhas A4</small></td></tr>`;
+    const cabLig = '<tr><th>N.º</th><th>Tipo</th><th>Entre</th><th>Flange EN 1092-1</th><th>Junta</th><th>Parafusaria</th></tr>';
+    const PRIM = 12, RESTO = 20;
+    nova('Troços e ligações', `<div class="a3-g1"><div>${aviso}${tTrocos}</div><aside class="a3-notas"><h4>Flanges</h4><p>Do lado do inox: flange solta EN 1092-1 tipo 02 PN${fg.pn} + colar de soldar tipo 32, no material da tubagem.</p><p>Do lado do ferro fundido ou do equipamento: flange EN 1092-2 PN${fg.pn}.</p>
+<h4>Ligações</h4><p><b style="color:#5e9732">Inox – inox</b>: junta EPDM.</p><p><b style="color:#e69500">Inox – ferro fundido</b>: kit de isolamento, para não haver contacto entre os dois metais.</p><p><b style="color:#8c8c8c">Ferro – ferro</b>: junta EPDM.</p><p>Parafusaria A4-70 em todas.</p></aside></div>
+<h3>Ligações, flanges e parafusaria</h3><table class="a3-t">${cabLig}${fg.ligacoes.slice(0, PRIM).map(linhaLig).join('')}</table>${fg.ligacoes.length > PRIM ? '<p class="a3-n">As ligações continuam na folha seguinte.</p>' : ''}`);
+    for (let i = PRIM; i < fg.ligacoes.length; i += RESTO)
+      nova('Ligações (continuação)', `<h3>Ligações, flanges e parafusaria (continuação)</h3><table class="a3-t">${cabLig}${fg.ligacoes.slice(i, i + RESTO).map(linhaLig).join('')}</table>`);
+    // uma ficha por troço: o desenho só dessa peça e as suas ligações (duas fichas por folha)
+    const fichas = fg.trocos.map(t => fichaTroco(res, t.id)).filter(Boolean);
+    for (let i = 0; i < fichas.length; i += 2)
+      nova(`Fichas dos troços ${fichas.slice(i, i + 2).map(x => x.troco.id).join(' e ')}`, `<div class="a3-fichas">${fichas.slice(i, i + 2).map(x => `<div><h3>Ficha do troço ${esc(x.troco.id)} — ${esc(x.troco.nome)}</h3>
+<p class="a3-n">${esc(x.troco.dn)} · comprimento ${esc(x.troco.L)} mm${x.troco.angulos && x.troco.angulos.length ? ' · curvas: ' + x.troco.angulos.map(a => String(a).replace('.', ',') + '°').join(', ') : ''}</p>
+${vista('Isométrico do troço', x.svg, 190, 95, new Set(), 'Sem escala; cotas ao eixo e à face das flanges, em mm.')}<div class="a3-flanges">${x.flanges.map(q => q.svg).join('')}</div>${tabelaLigacoes(x, 'a3-t')}</div>`).join('')}</div>`);
+    const tb = (titulo, o, reserva = true) => (Object.keys(o).length ? `<h4>${titulo}</h4><table class="a3-t"><tr><th>Medida</th><th class="n">Quant.</th>${reserva ? '<th class="n">c/ reserva +10 %</th>' : ''}</tr>
+${Object.entries(o).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n">${v}</td>${reserva ? `<td class="n">${Math.ceil(v * 1.1)}</td>` : ''}</tr>`).join('')}</table>` : '');
+    const dns = [...new Set(fg.ligacoes.map(l => l.dn))].sort((a, b) => a - b);
+    nova('Resumo de encomenda', `<h3>Resumo de encomenda — flanges, juntas e parafusaria (${fg.ligacoes.length} ligações)</h3><div class="a3-g3">
+<div>${tb('Parafusos sextavados A4-70 (ISO 4017) + porca ISO 4032 A4 + 2 anilhas ISO 7089 A4', fg.resumo.parafusos)}</div>
+<div>${tb(`Flanges soltas EN 1092-1 tipo 02 PN${fg.pn} + colar tipo 32`, fg.resumo.flanges, false)}${tb('Juntas planas EPDM e=3 (água potável)', fg.resumo.juntas)}</div>
+<div>${tb('Kits de isolamento (junta isolante + mangas + anilhas isolantes)', fg.resumo.kits)}</div></div>
+<p class="av">PRESSUPOSTO — comprimento dos parafusos calculado com espessuras estimadas: flange inox tipo 02 + colar 32 = ${dns.map(x => `DN${x} ${T_INOX[x]}`).join(', ')} mm; flange de ferro fundido = ${dns.map(x => `DN${x} ${T_FFD[x]}`).join(', ')} mm; junta 3 mm; kit com 2 anilhas isolantes de 3 mm. Confirmar com as fichas técnicas antes de encomendar.</p>
+<p class="a3-n">Mangas isolantes = n.º de parafusos de cada kit; anilhas isolantes = 2 × n.º de parafusos. A reserva é só indicativa.</p>`);
+  }
 
   // 3 — aprovisionamento e corte (com continuação se não couber)
   const lado = `<aside class="a3-notas">${ap.chapas.length ? `<h4>Chapas e vidros</h4><table class="a3-t"><tr><th>Material</th><th class="n">Peças</th><th class="n">m²</th><th class="n">kg</th></tr>
@@ -142,6 +187,39 @@ ${ap.compra.map(a => `<tr><td>${esc(a.nome)}</td><td class="n">${dec(a.qtd, a.qt
 }
 
 /** Proposta para o cliente. Só preços de venda: nunca valores internos. */
+/** Só as cotas gerais (comprimento total, altura, troços): as de cada vão ou módulo ficam para a oficina. */
+function cotasGerais(cotas = []) {
+  const hs = cotas.filter(c => c.tipo === 'h'), max = Math.max(0, ...hs.map(c => c.nivel || 1));
+  return cotas.filter(c => c.tipo !== 'h' || (c.nivel || 1) === max).map(c => (c.tipo === 'h' ? { ...c, nivel: 1 } : c));
+}
+
+/**
+ * Desenho para o cliente aprovar: uma folha A4 por trabalho, com o 3D, o alçado e a planta só com as medidas gerais,
+ * o material e o acabamento, e o espaço para a aprovação. Sem preços, lista de corte, posições nem notas da oficina.
+ * itens: [{ trabalho, res, descricao, imagem (3D em data URL), fotos: [{ src }] (só no trabalho livre) }]
+ */
+export function folhaCliente(obra, itens, empresa) {
+  return (itens || []).map(({ trabalho: t, res, descricao, imagem, fotos = [] }) => {
+    const nome = t.nome || (TIPOS[t.tipo] || {}).nome || 'Trabalho';
+    let corpo;
+    if (res.livre) {
+      corpo = fotos.length ? `<figure class="f-des"><img class="f-3d" src="${esc(fotos[0].src)}" alt="Rascunho"><figcaption>Rascunho</figcaption></figure>` : '';
+    } else {
+      const geral = { ...res, cotas: cotasGerais(res.cotas) };
+      const tub = !!res.dn;
+      corpo = `${imagem ? `<img class="f-3d" src="${imagem}" alt="Vista 3D">` : ''}
+<figure class="f-des"><figcaption>${tub ? 'Isométrico' : 'Alçado'}</figcaption>${alcadoSVG(geral)}</figure>
+<figure class="f-des f-planta"><figcaption>Planta</figcaption>${plantaSVG(geral)}</figure>`;
+    }
+    return `<article class="folha f-cliente">${cabecalho('Desenho para aprovação', obra, empresa)}
+<h2>${esc(nome)} <small>${esc((TIPOS[t.tipo] || {}).nome || '')}</small></h2>
+<p>${esc(descricao || '')}</p><p><strong>Material e acabamento:</strong> ${esc(descricaoMaterial(t))}.</p>
+${corpo}
+<p class="f-nota">Medidas em milímetros, sem escala. Desenho indicativo: as medidas finais são a confirmar em obra antes do fabrico.</p>
+<table class="f-aprova"><tr><th colspan="2">Aprovação do cliente</th></tr><tr><td>Nome</td><td></td></tr><tr><td>Assinatura</td><td></td></tr><tr><td>Data</td><td></td></tr></table></article>`;
+  }).join('');
+}
+
 export function folhaProposta(obra, linhas, empresa, precos) {
   const sub = linhas.reduce((s, l) => s + (+l.venda || 0), 0);
   // O IVA é o de cada trabalho (cópia de preços do trabalho), para bater com o ecrã.

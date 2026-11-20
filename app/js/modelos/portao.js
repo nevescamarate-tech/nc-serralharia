@@ -20,7 +20,8 @@ export function calcPortao(medidas = {}) {
   if (largura > 20000 || altura > 6000) return vazio([`Vão de ${largura}×${altura} mm demasiado grande; confirme as medidas (em mm).`]);
   if (largura < 300) return vazio([`Vão de ${largura} mm demasiado pequeno para um portão.`]);
   const g = num(m.folgaLado, DEF_PORTAO.folgaLado), chao = num(m.folgaChao, DEF_PORTAO.folgaChao);
-  const sobre = num(m.sobreposicao, DEF_PORTAO.sobreposicao), vaoMax = Math.max(20, num(m.vaoMax, DEF_PORTAO.vaoMax));
+  const sobre = num(m.sobreposicao, DEF_PORTAO.sobreposicao), vaoMax = Math.min(1000, Math.max(5, num(m.vaoMax, DEF_PORTAO.vaoMax)));
+  const vaoLam = num(m.vaoLaminas, 0) ? Math.min(1000, Math.max(5, num(m.vaoLaminas, 0))) : 0;   // vazio = lâminas juntas, como sempre
   const pAro = perfilOu(m.pAro, DEF_PORTAO.pAro), pTrav = perfilOu(m.pTravessa, DEF_PORTAO.pTravessa);
   const pVar = perfilOu(m.pVarao, DEF_PORTAO.pVarao), pLam = perfilOu(m.pLamina, DEF_PORTAO.pLamina), pPil = perfilOu(m.pPilar, DEF_PORTAO.pPilar);
   const a = dims(pAro).a, aT = dims(pTrav).a, dV = dims(pVar).a, dL = dims(pLam), aPil = dims(pPil).a;
@@ -76,7 +77,7 @@ export function calcPortao(medidas = {}) {
         r.ligacoes += 4;
       } else if (m.enchimento === 'laminas') {
         const [ya, yb] = linhasY[0], H = yb - ya;
-        const n = Math.max(1, Math.floor((H + FOLGA_LAMINA) / (dL.a + FOLGA_LAMINA)));
+        const n = Math.max(1, vaoLam ? Math.ceil((H - vaoLam) / (dL.a + vaoLam) - 1e-9) : Math.floor((H + FOLGA_LAMINA) / (dL.a + FOLGA_LAMINA)));
         const folga = (H - n * dL.a) / (n + 1);
         for (let j = 0; j < n; j++) {
           const y = ya + folga * (j + 1) + dL.a * (j + 0.5);

@@ -4,27 +4,40 @@ export const PERFIS = {};
 function add(id, nome, forma, o) { PERFIS[id] = { id, nome, forma, ...o }; }
 
 // Tubo redondo (d = diâmetro exterior, e = espessura)
-[[20, 1.5, 'tr20x1.5'], [26.9, 2, 'tr27x2'], [33.7, 2, 'tr33x2'], [42.4, 2, 'tr42x2'], [48.3, 2, 'tr48x2'], [50, 2, 'tr50x2'], [60.3, 2, 'tr60x2']]
+[[16, 1.5, 'tr16x1.5'], [20, 1.5, 'tr20x1.5'], [25, 1.5, 'tr25x1.5'], [26.9, 2, 'tr27x2'], [33.7, 2, 'tr33x2'], [42.4, 2, 'tr42x2'], [48.3, 2, 'tr48x2'], [50, 2, 'tr50x2'], [60.3, 2, 'tr60x2']]
   .forEach(([d, e, id]) => add(id, `Tubo redondo Ø${String(d).replace('.', ',')}×${e}`, 'tr', { d, e }));
 // Tubo quadrado
-[[20, 2], [30, 2], [40, 2], [50, 2], [60, 3], [80, 3], [80, 4], [100, 3], [100, 4], [120, 4]]
+[[20, 2], [25, 2], [30, 2], [40, 2], [50, 2], [60, 3], [80, 3], [80, 4], [100, 3], [100, 4], [120, 4]]
   .forEach(([a, e]) => add(`tq${a}x${e}`, `Tubo quadrado ${a}×${a}×${e}`, 'tq', { a, e }));
 // Tubo retangular
 [[40, 20, 2], [50, 30, 2], [60, 40, 2], [80, 20, 2], [80, 40, 2], [100, 50, 3], [120, 60, 3], [150, 50, 3]]
   .forEach(([a, b, e]) => add(`tret${a}x${b}x${e}`, `Tubo retangular ${a}×${b}×${e}`, 'tret', { a, b, e }));
 // Barra chata
-[[30, 5], [40, 5], [40, 8], [50, 8]]
+[[20, 5], [25, 5], [30, 5], [30, 8], [40, 5], [40, 8], [40, 10], [50, 5], [50, 8], [50, 10], [60, 8], [60, 10]]
   .forEach(([a, b]) => add(`barra${a}x${b}`, `Barra chata ${a}×${b}`, 'barra', { a, b }));
 // Varão redondo e quadrado
-[10, 12, 16].forEach(d => add(`varao${d}`, `Varão redondo Ø${d}`, 'varao', { d }));
-[10, 12, 14].forEach(a => add(`vq${a}`, `Varão quadrado ${a}×${a}`, 'vq', { a }));
+[8, 10, 12, 14, 16, 20, 25, 30, 40, 50].forEach(d => add(`varao${d}`, `Varão maciço redondo Ø${d}`, 'varao', { d }));
+[10, 12, 14, 16, 20].forEach(a => add(`vq${a}`, `Varão maciço quadrado ${a}×${a}`, 'vq', { a }));
 
 // Tubo para tubagem (ISO 1127): diâmetro nominal → diâmetro exterior em mm
 export const DIAMETROS = { 15: { de: 21.3 }, 20: { de: 26.9 }, 25: { de: 33.7 }, 32: { de: 42.4 }, 40: { de: 48.3 }, 50: { de: 60.3 }, 65: { de: 76.1 },
-  80: { de: 88.9 }, 100: { de: 114.3 }, 125: { de: 139.7 }, 150: { de: 168.3 }, 200: { de: 219.1 }, 250: { de: 273 }, 300: { de: 323.9 } };
-export const ESPESSURAS = [1.5, 2, 2.6, 3, 4];
+  80: { de: 88.9 }, 100: { de: 114.3 }, 125: { de: 139.7 }, 150: { de: 168.3 }, 200: { de: 219.1 }, 250: { de: 273 }, 300: { de: 323.9 },
+  350: { de: 355.6 }, 400: { de: 406.4 }, 450: { de: 457 }, 500: { de: 508 }, 600: { de: 610 } };
+export const ESPESSURAS = [1.5, 2, 2.6, 3, 4, 5, 6];
 for (const [dn, { de }] of Object.entries(DIAMETROS)) for (const e of ESPESSURAS)
   add(`tu${dn}x${e}`, `Tubo DN${dn} Ø${String(de).replace('.', ',')}×${String(e).replace('.', ',')}`, 'tu', { d: de, e, dn: +dn });
+
+/** Nomes dos tipos de material, pela ordem em que aparecem nas escolhas. */
+export const FORMAS = { tr: 'Tubo redondo', tq: 'Tubo quadrado', tret: 'Tubo retangular', barra: 'Barra chata', varao: 'Varão maciço redondo', vq: 'Varão maciço quadrado', tu: 'Tubo de tubagem (DN)' };
+/** Ao mudar de tipo de material: o perfil desse tipo com a medida mais parecida (Ø42 em tubo → Ø40 em varão maciço). */
+export function perfilProximo(perfilId, forma) {
+  const atual = PERFIS[perfilId];
+  if (atual && atual.forma === forma) return perfilId;
+  const med = p => (p.d ?? p.a), alvo = atual ? med(atual) : 40;
+  let melhor = null;
+  for (const p of Object.values(PERFIS)) if (p.forma === forma && (!melhor || Math.abs(med(p) - alvo) < Math.abs(med(melhor) - alvo))) melhor = p;
+  return melhor ? melhor.id : perfilId;
+}
 
 /** Área da secção em mm². */
 export function area(p) {
@@ -141,6 +154,14 @@ export const ACESSORIOS = {
   casquilho: { nome: 'Casquilho de união do corrimão', un: 'un' },
   calco_inox: { nome: 'Calço inox de nivelamento', un: 'un' },
   grout: { nome: 'Grout cimentício sem retração, saco de 25 kg', un: 'un' },
+  flange_solta: { nome: 'Flange solta EN 1092-1 tipo 02 (preço para DN50)', un: 'un' },
+  colar_inox: { nome: 'Colar de soldar tipo 32 (preço para DN50)', un: 'un' },
+  junta_epdm: { nome: 'Junta plana EPDM e=3, água potável (preço para DN50)', un: 'un' },
+  kit_isolamento: { nome: 'Kit de isolamento: junta, mangas e anilhas isolantes (preço para DN50)', un: 'un' },
+  reducao_inox: { nome: 'Redução concêntrica de soldar (preço para DN50)', un: 'un' },
+  parafuso_a4: { nome: 'Parafuso A4-70 com porca e 2 anilhas (preço para M16×60)', un: 'un' },
+  curva45_inox: { nome: 'Curva 45° de soldar (preço para DN50)', un: 'un' },
+  curva_ang_inox: { nome: 'Curva de soldar cortada ao ângulo (preço para DN50)', un: 'un' },
 };
 
 export const PRECOS_EXEMPLO = {
@@ -149,7 +170,7 @@ export const PRECOS_EXEMPLO = {
   m2: { vidro: 95, chapa_aco: 28, chapa_inox: 95, chapa_aluminio: 45, sandwich: 24, trapezoidal: 11, xps: 9, lacrimada: 42, gradil: 110 },
   acessorios: { sapata: 4.5, fix_lateral: 7, bucha: 0.6, tampa: 0.8, pinca_vidro: 9, suporte_parede: 5.5, curva90: 6,
     dobradica: 8, fechadura: 45, batente_chao: 12, roda: 22, carril: 14, guia_sup: 18, batente_fim: 15,
-    cremalheira: 9, motor_prep: 35, placa_base: 14, perno: 2.5, bucha_quimica: 4.5, parafuso_cob: 0.25, cumeeira: 9, rebite: 0.12, pata_grade: 1.8, casquilho: 3, calco_inox: 0.6, grout: 14, curva_inox: 9, flange_inox: 18, tampao_inox: 7, te_inox: 14, abracadeira_inox: 4 },
+    cremalheira: 9, motor_prep: 35, placa_base: 14, perno: 2.5, bucha_quimica: 4.5, parafuso_cob: 0.25, cumeeira: 9, rebite: 0.12, pata_grade: 1.8, casquilho: 3, calco_inox: 0.6, grout: 14, curva_inox: 9, flange_inox: 18, tampao_inox: 7, te_inox: 14, abracadeira_inox: 4, flange_solta: 12, colar_inox: 8, junta_epdm: 2.5, kit_isolamento: 22, reducao_inox: 11, parafuso_a4: 1.1, curva45_inox: 7, curva_ang_inox: 12 },
   horaOficina: 28, horaMontagem: 30, deslocacao: 40,
   acabamento: { pintado: 12, lacado: 16, galvanizado: 0.75, escovado: 8, polido: 18, anodizado: 14, decapado: 6 },
   margem: 30, iva: 23, vara: 6000, serra: 3, materialModo: 'varas', desperdicio: 8, consumiveis: 3,

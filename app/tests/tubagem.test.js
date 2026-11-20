@@ -81,3 +81,13 @@ test('articulado: tubagem é reconhecida e a linha em metros dá o comprimento',
   eq(classificar('Condutas em inox para extração'), 'tubagem');
   eq(medidasDeLinha({ un: 'm', qtd: 24 }, 'tubagem').trocos[0].comp, 24000);
 });
+
+test('diâmetros grandes: DN350 a DN600 existem, com o diâmetro exterior da norma e paredes de 5 e 6 mm', () => {
+  for (const [dn, de] of [[350, 355.6], [400, 406.4], [450, 457], [500, 508], [600, 610]]) {
+    const r = calcTubagem({ dn, esp: 5, trocos: [{ comp: 4000, dir: 'dir' }, { comp: 3000, dir: 'cima' }] });
+    eq(r.dn, dn); eq(r.de, de); eq(r.esp, 5); eq(r.pecas[0].perfil, `tu${dn}x5`);
+    perto(r.pecas[0].L, 4000 - 1.5 * dn, 0.5); ok(semNaN(r));
+  }
+  eq(calcTubagem({ dn: 500, esp: 6, trocos: [{ comp: 2000, dir: 'dir' }] }).esp, 6);
+  perto(kgm('tu500x6', 'inox304'), Math.PI / 4 * (508 ** 2 - 496 ** 2) * 7900 / 1e6, 0.01);
+});

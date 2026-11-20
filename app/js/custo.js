@@ -81,6 +81,11 @@ export function custo(trabalho, res, plano, precos) {
     // fator: alguns acessórios (tubagem) têm o preço de tabela para DN50 e escalam com o diâmetro
     cAcess += linha(nomeAcessorio(a), a.qtd, (ACESSORIOS[a.ref] || {}).un || 'un', n0(pu) * (a.fator > 0 ? a.fator : 1));
   }
+  // Outros artigos de compra, com o preço escrito no próprio trabalho (trabalho livre)
+  for (const x of res.extras || []) {
+    if (!(x.pu > 0)) semPreco.push(x.nome);
+    cAcess += linha(x.nome, x.qtd, 'un', n0(x.pu));
+  }
   // Mão de obra de oficina
   cap = 'oficina';
   const manual = trabalho.horasOficina;
@@ -103,17 +108,18 @@ export function custo(trabalho, res, plano, precos) {
 
   const total = cMaterial + cPaineis + cCons + cAcess + cOficina + cAcab + cMont + cDesl;
   const margem = Number.isFinite(+trabalho.margem) && trabalho.margem !== '' && trabalho.margem !== null ? +trabalho.margem : n0(precos.margem);
-  const venda = total * (1 + margem / 100);
+  // Margem sobre a venda: com 30 %, 30 % do preço de venda é ganho (venda = custo ÷ 0,70). Até 95 %, para não dividir por zero.
+  const mg = Math.min(95, margem), venda = total / (1 - mg / 100);
   const iva = venda * n0(precos.iva) / 100;
   return { material: cMaterial, paineis: cPaineis, consumiveis: cCons, acessorios: cAcess, oficinaH, oficina: cOficina, acabamento: cAcab,
-    montagem: cMont, deslocacao: cDesl, total, margem, venda, iva, vendaIva: venda + iva, linhas,
+    montagem: cMont, deslocacao: cDesl, total, margem: mg, venda, iva, vendaIva: venda + iva, linhas,
     semPreco: [...new Set(semPreco)], pesoKg: kg, superficieM2: m2 };
 }
 
 /** Nome do acessório para as listas; nos de tubagem troca «(preço para DN50)» pelo diâmetro do trabalho. */
 export function nomeAcessorio(a) {
   const nome = (ACESSORIOS[a.ref] || {}).nome || a.ref;
-  return a.sufixo ? nome.replace(/\s*\(preço para DN50\)/, '') + ' ' + a.sufixo : nome;
+  return a.sufixo ? nome.replace(/\s*\(preço para [^)]*\)/, '') + ' ' + a.sufixo : nome;
 }
 
 const CAPITULOS = [['materiais', 'Materiais'], ['ferragens', 'Ferragens e fixação'], ['tratamento', 'Tratamento e acabamento'], ['consumiveis', 'Consumíveis de oficina'],

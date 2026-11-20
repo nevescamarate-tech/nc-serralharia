@@ -1,5 +1,5 @@
 import { dims, PERFIS } from '../catalogo.js';
-import { num, numLivre, reparte, hip, arred, vazio, peca, sacoAcessorios, repartirVaroes } from './util.js';
+import { num, numLivre, reparte, hip, arred, vazio, peca, sacoAcessorios, repartirVaroes, ripa, afast, deitado } from './util.js';
 
 export const DEF_GUARDA = {
   trocos: [{ comp: '', desnivel: 0, viragem: 0 }],
@@ -15,12 +15,12 @@ export function calcGuarda(medidas = {}) {
   const m = { ...DEF_GUARDA, ...medidas };
   const altura = num(m.altura, DEF_GUARDA.altura);
   const maxPrumos = Math.max(200, num(m.maxPrumos, DEF_GUARDA.maxPrumos));
-  const vaoMax = Math.max(20, num(m.vaoMax, DEF_GUARDA.vaoMax));
+  const vaoMax = afast(m.vaoMax, DEF_GUARDA.vaoMax), vaoBarras = num(m.vaoBarras, 0) ? afast(m.vaoBarras, 0) : 0;
   const baixo = num(m.baixo, DEF_GUARDA.baixo);
   const nBarras = Math.min(30, Math.max(1, Math.round(num(m.nBarras, DEF_GUARDA.nBarras))));
   const pPrumo = perfilOu(m.pPrumo, DEF_GUARDA.pPrumo), pCorr = perfilOu(m.pCorrimao, DEF_GUARDA.pCorrimao);
   const pTrav = perfilOu(m.pTravessa, DEF_GUARDA.pTravessa), pVar = perfilOu(m.pVarao, DEF_GUARDA.pVarao);
-  const aP = dims(pPrumo).a, hc = dims(pCorr).a, dV = dims(pVar).a;
+  const aP = dims(pPrumo).a, fC = deitado(pCorr), hc = fC.t, fV = ripa(pVar, m.posicao), dV = fV.t;
   const dT = dims(pTrav), tT = dT.b, profT = dT.a;   // travessa deitada: vê-se a face menor
   const avisos = [];
 
@@ -63,7 +63,7 @@ export function calcGuarda(medidas = {}) {
     const yc = altura - hc / 2, rad1 = Math.PI / 180;
     // Comprimento pela ponta mais comprida: o eixo mais meia secção por cada topo em meia-esquadria.
     r.pecas.push(peca('corrimao', pCorr, pt(0, yc), pt(t.comp, yc), [...sy(0, yc), ...sy(t.comp, yc)],
-      { L: hip(t.comp, t.desnivel) + hc / 2 * (Math.tan(angA * rad1) + Math.tan(angB * rad1)), ang: [angA, angB] }));
+      { L: hip(t.comp, t.desnivel) + hc / 2 * (Math.tan(angA * rad1) + Math.tan(angB * rad1)), ang: [angA, angB], ...fC }));
 
     // Prumos: nas pontas livres recuam meia secção; nos cantos ficam no vértice (partilhados).
     const u0 = primeiro ? aP / 2 : 0, u1 = ultimo ? t.comp - aP / 2 : t.comp;
@@ -94,7 +94,7 @@ export function calcGuarda(medidas = {}) {
         const yb = baixo + tT, yt = yTopo - tT;
         for (let j = 0; j < nv; j++) {
           const u = ua + folga * (j + 1) + dV * (j + 0.5);
-          r.pecas.push(peca('varao', pVar, pt(u, yb), pt(u, yt), [...sy(u, yb), ...sy(u, yt)], { L: yt - yb, ang: [angInc, angInc] }));
+          r.pecas.push(peca('varao', pVar, pt(u, yb), pt(u, yt), [...sy(u, yb), ...sy(u, yt)], { L: yt - yb, ang: [angInc, angInc], ...fV }));
           r.ligacoes += 2;
         }
         r.vaos.push({ livre: arred(livre), n: nv, folga: arred(folga) });
@@ -112,12 +112,15 @@ export function calcGuarda(medidas = {}) {
           ac.junta('pinca_vidro', 4);
         }
       } else if (m.enchimento === 'barras') {
-        const passoY = (altura - hc - baixo) / nBarras;
-        for (let j = 0; j < nBarras; j++) {
-          const dy = baixo + passoY * j;
-          r.pecas.push(peca('barra', pVar, pt(ua, dy), pt(ub, dy), [...sy(ua, dy), ...sy(ub, dy)], { L: livre * f, ang: [angInc, angInc] }));
+        // com afastamento pedido: folgas iguais entre barras e da última ao corrimão; senão, pelo número de barras
+        const zona = altura - hc - baixo, nb = vaoBarras ? Math.min(80, Math.max(1, Math.ceil(zona / (dV + vaoBarras) - 1e-9))) : nBarras;
+        const passoY = zona / nb;
+        for (let j = 0; j < nb; j++) {
+          const dy = baixo + passoY * j + (vaoBarras ? dV / 2 : 0);
+          r.pecas.push(peca('barra', pVar, pt(ua, dy), pt(ub, dy), [...sy(ua, dy), ...sy(ub, dy)], { L: livre * f, ang: [angInc, angInc], ...fV }));
           r.ligacoes += 2;
         }
+        if (vaoBarras) r.vaos.push({ livre: arred(zona), n: nb, folga: arred(passoY - dV), horizontal: true });
       }
     }
 

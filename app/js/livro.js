@@ -13,7 +13,7 @@ export function livroCusto(obra, trabalho, res, c) {
     [B('Capítulo'), B('Custo (€)'), B('% do total')],
     ...caps.map(k => [`${k.n}. ${k.nome}`, a2(k.total), a2(k.pct)]),
     [B('TOTAL CUSTO DIRETO (sem margem)'), B(a2(c.total)), B(100)], [],
-    [B('Fecho')], [`Margem (${a2(c.margem)} % sobre o custo)`, a2(c.venda - c.total)], [B('Venda sem IVA'), B(a2(c.venda))], ['IVA', a2(c.iva)], [B('Venda com IVA'), B(a2(c.vendaIva))], [],
+    [B('Fecho')], [`Margem (${a2(c.margem)} % sobre a venda)`, a2(c.venda - c.total)], [B('Venda sem IVA'), B(a2(c.venda))], ['IVA', a2(c.iva)], [B('Venda com IVA'), B(a2(c.vendaIva))], [],
     [B('Indicadores')], ['Peso do metal (kg)', a2(c.pesoKg)], ['Superfície a tratar (m²)', a2(c.superficieM2)], ['Horas de oficina', a2(c.oficinaH)],
     ...(metros > 0 ? [['Comprimento (m)', a2(metros)], ['Custo por metro (€/m)', a2(c.total / metros)], ['Venda por metro (€/m)', a2(c.venda / metros)]] : []),
     ...(c.pesoKg > 0 ? [['Custo por kg de metal (€/kg)', a2(c.total / c.pesoKg)]] : []),

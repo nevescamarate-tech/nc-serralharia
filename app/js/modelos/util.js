@@ -1,4 +1,4 @@
-import { dims } from '../catalogo.js';
+import { dims, PERFIS } from '../catalogo.js';
 
 /** Número finito e positivo, senão o valor por omissão. */
 export function num(v, def) {
@@ -46,4 +46,22 @@ export function sacoAcessorios() {
 export function repartirVaroes(livre, d, vaoMax) {
   const n = Math.max(0, Math.ceil((livre + d) / (vaoMax + d) - 1e-9) - 1);
   return { n, folga: (livre - n * d) / (n + 1) };
+}
+
+/** Face que se vê (t) e profundidade (p) de um varão ou ripa: de face mostra a maior; ao alto (de cutelo) mostra a menor. */
+export function ripa(perfil, posicao) {
+  const d = dims(perfil), cutelo = posicao === 'cutelo' && !d.redondo;
+  return { t: cutelo ? Math.min(d.a, d.b) : d.a, p: cutelo ? Math.max(d.a, d.b) : d.b };
+}
+/** Corrimão ou peça deitada: a barra chata assenta de chapa (vê-se a espessura); os outros perfis ficam como são. */
+export function deitado(perfil) {
+  const d = dims(perfil), chata = (PERFIS[perfil] || {}).forma === 'barra';
+  return { t: chata ? d.b : d.a, p: chata ? d.a : d.b };
+}
+/** Afastamento livre pedido, entre 5 mm e 1 m; sem valor válido, o de omissão. */
+export const afast = (v, def) => Math.min(1000, Math.max(5, num(v, def)));
+/** Barras encostadas aos dois limites de uma zona: n peças e n−1 folgas iguais que não passam de vaoMax. */
+export function repartirEncostado(zona, d, vaoMax, maxN = 80) {
+  const n = Math.min(maxN, Math.max(2, Math.ceil((zona + vaoMax) / (d + vaoMax) - 1e-9)));
+  return { n, folga: (zona - n * d) / (n - 1) };
 }

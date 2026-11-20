@@ -14,8 +14,9 @@ const EIXOS = {
   portao: { campo: 'enchimento', opcoes: { varoes: 'varões', chapa: 'chapa lisa', laminas: 'lâminas', almofadas: 'almofadas quinadas' }, materiais: [['aco', 'pintado'], ['aco', 'galv_lacado']] },
   telheiro: { campo: 'cobertura', opcoes: { sandwich: 'painel sandwich', trapezoidal: 'chapa trapezoidal', ripado: 'ripado' }, materiais: MAT_EXTERIOR },
   escada: { campo: 'degrau', opcoes: { lacrimada: 'degraus em chapa lacrimada', gradil: 'degraus em gradil' }, materiais: MAT_EXTERIOR },
-  corrimao: { materiais: MAT_CORRENTES }, grade: { materiais: [['aco', 'pintado'], ['aco', 'galv_lacado']] }, guardamuro: { materiais: MAT_CORRENTES },
+  corrimao: { materiais: MAT_CORRENTES }, grade: { materiais: [['aco', 'pintado'], ['aco', 'galv_lacado']] }, guardamuro: { materiais: MAT_CORRENTES }, livre: { materiais: MAT_CORRENTES },
   tubagem: { materiais: [['inox304', 'nenhum'], ['inox304', 'decapado'], ['inox316', 'decapado']] },
+  flangeada: { materiais: [['inox304', 'nenhum'], ['inox304', 'decapado'], ['inox316', 'decapado']] },
 };
 const nomeMat = (m, a) => `${MATERIAIS[m].nome.replace(' (ferro)', '')} ${acabamentoDe(m, a).nome.toLowerCase()}`;
 
@@ -42,7 +43,7 @@ export function compararSolucoes(trabalho) {
   for (const v of variantes(trabalho)) {
     const t = { ...trabalho, medidas: v.medidas, material: v.material, acabamento: v.acabamento };
     const res = calcular(t);
-    if (!res.pecas.length) continue;
+    if (!res.pecas.length && !res.paineis.length) continue;
     const pr = t.precos || {}, c = custo(t, res, planoCorte(res.pecas, { vara: pr.vara, serra: pr.serra }), pr), vf = verificar(t, res);
     out.push({ ...v, venda: c.venda, custo: c.total, kg: c.pesoKg, semPreco: c.semPreco.length > 0, passa: vf ? vf.ok : null });
   }

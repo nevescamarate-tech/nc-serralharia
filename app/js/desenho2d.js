@@ -35,7 +35,10 @@ function embrulho(b, U, corpo, cor = "#c0392b") {
     `<style>.pc{fill:#fff;stroke:#111;stroke-width:${sw}}.pf{fill:#dfe5ea;fill-opacity:.8;stroke:#111;stroke-width:${sw}}.pn{fill:#e9eef2;stroke:#111;stroke-width:${sw}}.vd{fill:#d6ecf5;stroke:#4a7d91;stroke-width:${sw}}` +
     `.cota line{stroke:${cor};stroke-width:${f(U * 0.05)}}.cota text{fill:${cor};font-family:Helvetica,Arial,sans-serif}` +
     `.bl circle{fill:#fff;stroke:#1b7f3b;stroke-width:${f(U * 0.09)}}.bl line{stroke:#1b7f3b;stroke-width:${f(U * 0.06)}}.bl text{fill:#111;font-family:Helvetica,Arial,sans-serif;font-weight:bold}` +
-    `.chao{stroke:#888;stroke-width:${f(U * 0.06)};stroke-dasharray:${f(U * 0.6)} ${f(U * 0.3)}}.pt{fill:#111}</style>${corpo}</svg>`;
+    `.chao{stroke:#888;stroke-width:${f(U * 0.06)};stroke-dasharray:${f(U * 0.6)} ${f(U * 0.3)}}.pt{fill:#111}` +
+    `.arco{fill:none;stroke:#111}.arcoi{fill:none;stroke:#fff}.eq{fill:#1f5fae;fill-opacity:.8;stroke:#111;stroke-width:${sw}}.fl{fill:#555;stroke:#111;stroke-width:${sw}}` +
+    `.tro rect{fill:#fff;stroke:#c00000;stroke-width:${f(U * 0.1)}}.tro text{fill:#c00000;font-family:Helvetica,Arial,sans-serif;font-weight:bold}` +
+    `.lig circle{stroke:#fff;stroke-width:${f(U * 0.08)}}.lig.g circle{fill:#5e9732}.lig.o circle{fill:#e69500}.lig.y circle{fill:#8c8c8c}.lig text{fill:#fff;font-family:Helvetica,Arial,sans-serif;font-weight:bold}</style>${corpo}</svg>`;
 }
 
 /** Alçado desenvolvido (os troços aparecem seguidos, como se a guarda fosse esticada). */
@@ -54,10 +57,45 @@ export function alcadoSVG(res, { fino = false, refs = null, janela = null } = {}
     formas.push(pol(q, 'pc')); pts.push(...q);
   }
   formas.push(...frentes);                       // chapas da frente por cima da estrutura, meio transparentes
+  for (const c of res.curvas2d || []) {          // curvas de tubagem com o raio verdadeiro: traço grosso com o interior a branco
+    for (const [x, y] of c.pts) pts.push([x - c.t / 2, y - c.t / 2], [x + c.t / 2, y + c.t / 2]);
+  }
+  for (const k of res.blocos2d || []) { const q = faixa(k.a[0], k.a[1], k.b[0], k.b[1], k.t); formas.push(pol(q, k.cls)); pts.push(...q); }   // equipamentos, flanges e reduções
   const b = limites(pts);
   if (janela) { b.x0 = janela[0]; b.x1 = janela[1]; }   // pormenor: só se vê esta faixa do alçado
   const U = Math.max(b.x1 - b.x0, b.y1 - b.y0, 400) / (janela ? 55 : fino ? 85 : 40);
-  for (const pt of res.pontos || []) formas.push(`<circle class="pt" cx="${f(pt.s[0])}" cy="${f(-pt.s[1])}" r="${f(U * 0.22)}"/>`);
+  for (const c of res.curvas2d || []) {          // o contorno da curva fica com a mesma espessura de traço dos tubos
+    const linha = c.pts.map(([x, y]) => f(x) + ',' + f(-y)).join(' ');
+    formas.push(`<polyline class="arco" points="${linha}" stroke-width="${f(c.t)}"/><polyline class="arcoi" points="${linha}" stroke-width="${f(Math.max(c.t - U * 0.14, c.t * 0.5))}"/>`);
+    if (c.ang) {                                 // o ângulo da curva, escrito do lado de fora
+      const m = c.pts[Math.floor(c.pts.length / 2)], p0 = c.pts[0], p1 = c.pts[c.pts.length - 1], vx = m[0] - (p0[0] + p1[0]) / 2, vy = m[1] - (p0[1] + p1[1]) / 2, n = Math.hypot(vx, vy) || 1;
+      const x = m[0] + vx / n * (c.t / 2 + U * 1.3), y = m[1] + vy / n * (c.t / 2 + U * 1.3);
+      formas.push(`<g class="cota"><text x="${f(x)}" y="${f(-y + U * 0.4)}" text-anchor="middle" font-size="${f(U * 1.1)}" font-weight="bold">${c.ang}</text></g>`);
+      b.x0 = Math.min(b.x0, x - U * 2); b.x1 = Math.max(b.x1, x + U * 2); b.y0 = Math.min(b.y0, y - U); b.y1 = Math.max(b.y1, y + U);
+    }
+  }
+  const comArcos = (res.curvas2d || []).length > 0;
+  if (!res.semPontos2d) for (const pt of res.pontos || []) if (!(comArcos && pt.tipo === 'curva')) formas.push(`<circle class="pt" cx="${f(pt.s[0])}" cy="${f(-pt.s[1])}" r="${f(U * 0.22)}"/>`);
+  const etiquetas = [];
+  // lado contrário ao das cotas: as cotas ficam «por cima» do tubo (no sentido em que o texto se lê), as etiquetas por baixo
+  const paraFora = (e, dist) => {
+    if (!e.a || !e.b) return [e.s[0], e.s[1] - dist];
+    let ang = Math.atan2(e.b[1] - e.a[1], e.b[0] - e.a[0]);
+    if (ang >= Math.PI / 2 - 1e-9 || ang < -Math.PI / 2 - 1e-9) ang -= Math.PI;   // mesma regra das cotas: um tubo vertical lê-se de baixo para cima
+    return [e.s[0] + Math.sin(ang) * dist, e.s[1] - Math.cos(ang) * dist];
+  };
+  for (const e of res.etiquetas || []) {         // tubagem flangeada: nome dos troços e número das ligações
+    if (e.cls === 'tro') {
+      const w = U * (0.9 + 0.75 * e.txt.length), h = U * 1.5, [x, y] = paraFora(e, (e.r || 0) + U * 1.5);
+      etiquetas.push(`<g class="tro"><rect x="${f(x - w / 2)}" y="${f(-y - h / 2)}" width="${f(w)}" height="${f(h)}" rx="${f(U * 0.3)}"/><text x="${f(x)}" y="${f(-y + U * 0.38)}" text-anchor="middle" font-size="${f(U * 1.05)}">${e.txt}</text></g>`);
+      b.y1 = Math.max(b.y1, y + h); b.y0 = Math.min(b.y0, y - h); b.x0 = Math.min(b.x0, x - w / 2); b.x1 = Math.max(b.x1, x + w / 2);
+    } else {
+      const rr = U * 0.85, [x, y] = paraFora(e, (e.r || 0) + U * 1.2);
+      b.x0 = Math.min(b.x0, x - rr); b.x1 = Math.max(b.x1, x + rr); b.y1 = Math.max(b.y1, y + rr);
+      etiquetas.push(`<g class="${e.cls}"><circle cx="${f(x)}" cy="${f(-y)}" r="${f(rr)}"/><text x="${f(x)}" y="${f(-y + U * 0.3)}" text-anchor="middle" font-size="${f(U * (e.txt.length > 2 ? 0.7 : 0.9))}">${e.txt}</text></g>`);
+      b.y0 = Math.min(b.y0, y - rr);
+    }
+  }
   if (refs) {   // um balão por referência, na primeira peça que a tem
     const vistos = new Set(); let k = 0;
     for (const p of [...res.pecas, ...res.paineis]) {
@@ -87,11 +125,11 @@ export function alcadoSVG(res, { fino = false, refs = null, janela = null } = {}
       const mx = (c.a[0] + c.b[0]) / 2, my = -(c.a[1] + c.b[1]) / 2;
       let ang = Math.atan2(-(c.b[1] - c.a[1]), c.b[0] - c.a[0]) * 180 / Math.PI;
       if (ang > 90 || ang <= -90) ang += 180;
-      formas.push(`<g class="cota"><text x="${f(mx)}" y="${f(my - U * 1.1)}" text-anchor="middle" font-size="${f(U * 1.25)}" transform="rotate(${f(ang)} ${f(mx)} ${f(my)})">${c.texto}</text></g>`);
+      formas.push(`<g class="cota"><text x="${f(mx)}" y="${f(my - (c.t ? c.t / 2 + U * 0.6 : U * 1.1))}" text-anchor="middle" font-size="${f(U * 1.25)}" transform="rotate(${f(ang)} ${f(mx)} ${f(my)})">${c.texto}</text></g>`);
     } else if (c.tipo === 'h') { const y = yBase - U * 2.2 * c.nivel; formas.push(cotaH(c.s1, c.s2, y, c.texto, U)); baixo = Math.min(baixo, y - U); }
     else { const x = b.x0 - U * 2.2; formas.push(cotaV(x, c.y1, c.y2, c.texto, U)); esq = Math.min(esq, x - U * 1.6); }
   }
-  return embrulho({ x0: esq, y0: baixo, x1: b.x1, y1: b.y1 }, U, formas.join(''), fino || janela ? '#1f4e9c' : undefined);
+  return embrulho({ x0: esq, y0: baixo, x1: b.x1, y1: b.y1 }, U, formas.join('') + etiquetas.join(''), fino || janela ? '#1f4e9c' : undefined);
 }
 
 /** Planta (vista de cima). */

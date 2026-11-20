@@ -28,29 +28,29 @@ export function listaPosicoes(res, material) {
     const k = chavePeca(p);
     if (!juntas.has(k)) {
       const kgUn = p.L / 1000 * kgm(p.perfil, mat), ang = p.ang || [0, 0];
-      juntas.set(k, { tipo: 'perfil', grupo: p.grupo, perfilId: p.perfil, perfil: (PERFIS[p.perfil] || {}).nome || p.perfil, L: p.L,
+      juntas.set(k, { tipo: 'perfil', grupo: p.grupo, nome: p.nome, letra: p.letra, ordem: p.ordem, perfilId: p.perfil, perfil: (PERFIS[p.perfil] || {}).nome || p.perfil, L: p.L,
         dim: String(Math.round(p.L * 10) / 10).replace('.', ','), qtd: 0, kgUn, corte: `${grau(ang[0])}/${grau(ang[1])}`, itens: [] });
     }
     const g = juntas.get(k); g.qtd++; g.itens.push(p);
   }
   for (const p of (res && res.paineis) || []) {
     const k = `${p.grupo}|${p.esp}|${p.w}|${p.h}|${p.dy ? arred(p.dy) : 0}`;
-    if (!juntas.has(k)) juntas.set(k, { tipo: 'painel', grupo: p.grupo, perfilId: '', perfil: painelInfo(p, mat).nome,
+    if (!juntas.has(k)) juntas.set(k, { tipo: 'painel', grupo: p.grupo, nome: p.nome, letra: p.letra, ordem: p.ordem, perfilId: '', perfil: painelInfo(p, mat).nome,
       L: Math.max(p.w, p.h), dim: `${Math.round(p.w)} × ${Math.round(p.h)}`, qtd: 0,
       kgUn: painelInfo(p, mat).kg, corte: p.nota || (p.dy ? 'topo inclinado' : '—'), itens: [] });
     const g = juntas.get(k); g.qtd++; g.itens.push(p);
   }
   const lista = [...juntas.values()].sort((a, b) => {
     const ia = ORDEM.indexOf(a.grupo), ib = ORDEM.indexOf(b.grupo);
-    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.perfil.localeCompare(b.perfil) || b.L - a.L;
+    return (a.ordem || 0) - (b.ordem || 0) || (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.perfil.localeCompare(b.perfil) || b.L - a.L;
   });
   const conta = {}, refDe = new Map();
   const posicoes = lista.map(g => {
-    const [letra, nome] = GRUPOS[g.grupo] || [String(g.grupo || 'X').slice(0, 1).toUpperCase(), g.grupo || 'Peça'];
+    const [letraG, nomeG] = GRUPOS[g.grupo] || [String(g.grupo || 'X').slice(0, 1).toUpperCase(), g.grupo || 'Peça'], letra = g.letra || letraG, nome = g.nome || nomeG;
     conta[letra] = (conta[letra] || 0) + 1;
     const ref = letra + conta[letra];
     for (const it of g.itens) refDe.set(it, ref);
-    const { itens, ...resto } = g;
+    const { itens, nome: _n, letra: _l, ordem: _o, ...resto } = g;
     return { ref, designacao: nome, ...resto, kgUn: arred(g.kgUn, 2), kg: arred(g.kgUn * g.qtd, 2) };
   });
   return { posicoes, refDe };
@@ -81,14 +81,15 @@ export function aprovisionamento(res, plano, material, vara = 6000) {
     g.kg += painelInfo(p, material).kg;
   }
   const chapas = [...porTipo.values()].map(g => ({ ...g, m2: arred(g.m2, 2), kg: arred(g.kg, 1) }));
-  const compra = ((res && res.acessorios) || []).map(a => ({ nome: nomeAcessorio(a), qtd: a.qtd, un: (ACESSORIOS[a.ref] || {}).un || 'un' }));
+  const compra = [...((res && res.acessorios) || []).map(a => ({ nome: nomeAcessorio(a), qtd: a.qtd, un: (ACESSORIOS[a.ref] || {}).un || 'un' })),
+    ...((res && res.extras) || []).map(x => ({ nome: x.nome, qtd: x.qtd, un: 'un' }))];
   return { varas, chapas, compra };
 }
 
 /** Notas de fabrico por omissão, conforme o material e o acabamento. São pressupostos a confirmar. */
 export function notasFabrico(trabalho, res) {
   const matId = MATERIAIS[trabalho.material] ? trabalho.material : 'aco', mat = MATERIAIS[matId], ac = acabamentoDe(matId, trabalho.acabamento);
-  const tub = trabalho.tipo === 'tubagem', cor = ac.comCor && trabalho.corNome ? ' ' + trabalho.corNome : '';
+  const tub = trabalho.tipo === 'tubagem' || trabalho.tipo === 'flangeada', cor = ac.comCor && trabalho.corNome ? ' ' + trabalho.corNome : '';
   const material = { aco: 'Perfis e tubos em aço S235JR (EN 10219 / EN 10025).', inox: `Aço inoxidável ${matId === 'inox316' ? 'AISI 316L (1.4404)' : 'AISI 304 (1.4301)'}. Usar só ferramentas e discos próprios para inox.`,
     aluminio: 'Perfis em liga de alumínio EN AW-6060/6063 T5.' }[mat.familia];
   const solda = { aco: ['MAG (135), fio G3Si1. Cordões de ângulo a3, contínuos nas ligações à vista.', 'Esmerilar os cordões nas faces visíveis. Fechar os topos abertos dos tubos.'],
@@ -143,6 +144,9 @@ export function pormenorVao(res) {
   }
   const horiz = res.pecas.filter(p => !vertical(p) && Math.min(p.s[0], p.s[2]) < xb && Math.max(p.s[0], p.s[2]) > xa).map(p => (p.s[1] + p.s[3]) / 2 - p.t / 2).sort((p, q) => p - q);
   if (horiz.length && horiz[0] > 5) cotas.push({ tipo: 'v', y1: 0, y2: horiz[0], texto: String(Math.round(horiz[0])) });
+  // barras ou lâminas deitadas: a folga livre entre as duas primeiras
+  const deit = res.pecas.filter(p => ['barra', 'lamina'].includes(p.grupo) && !vertical(p) && Math.min(p.s[0], p.s[2]) < xb && Math.max(p.s[0], p.s[2]) > xa).sort((p, q) => p.s[1] - q.s[1]);
+  if (deit.length > 1) { const y1 = deit[0].s[1] + deit[0].t / 2, y2 = deit[1].s[1] - deit[1].t / 2; if (y2 - y1 > 1) cotas.push({ tipo: 'v', y1, y2, texto: String(Math.round(y2 - y1)) }); }
   return alcadoSVG({ ...res, cotas, pontos: [] }, { fino: true, janela: [xa - a.t - m, xb + b.t + m] });
 }
 
@@ -264,7 +268,7 @@ export function sequenciaFabrico(trabalho, res) {
     'Assentar o módulo sobre 3 calços inox; linha e nível; aprumo com 2 escoras por módulo; travar com cunhas.',
     'Verter o grout de um só lado até sair do outro, um troço de cada vez; acabar à face do muro.',
     'Cura húmida 3 dias; às 24 h tirar escoras e cunhas de cima e retocar. Junta de módulo em cada junta de dilatação do muro.'];
-  const tub = trabalho.tipo === 'tubagem';
+  const tub = trabalho.tipo === 'tubagem' || trabalho.tipo === 'flangeada';
   return [
     'Confirmar as medidas em obra e resolver os pontos «a confirmar» antes de cortar.',
     'Cortar pela lista de corte por vara e marcar cada peça com a sua posição.',

@@ -66,10 +66,15 @@ button, .b-sec, .b-pri { min-height: 48px; padding: 10px 18px; border-radius: 8p
 .trocos legend { font-size: .85rem; color: var(--suave); padding: 0; margin-bottom: 4px; }
 .troco { display: grid; gap: 10px; padding: 12px; border: 1px dashed var(--linha); border-radius: 8px; }
 .troco-cab { display: flex; justify-content: space-between; align-items: center; min-height: 32px; }
+.outra-linha { margin-top: 14px; padding-top: 10px; border-top: 2px solid var(--linha); }
+.livre-l { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); align-items: end; } .livre-l .troco-cab { grid-column: 1 / -1; }
 
 .des { background: #fff; border: 1px solid var(--linha); border-radius: var(--raio); padding: 8px; }
 .des svg, .desenho { width: 100%; height: auto; max-height: 70vh; display: block; }
 .tres { height: min(62vh, 520px); border: 1px solid var(--linha); border-radius: var(--raio); overflow: hidden; background: #f4f4f2; }
+.tres-etq { position: absolute; inset: 0; pointer-events: none; overflow: hidden; } .tres-etq span { position: absolute; transform: translate(-50%, -50%); font: bold 11px/1 Helvetica, Arial, sans-serif; white-space: nowrap; } .tres-etq .tro { background: #fff; border: 1.5px solid #c00000; color: #c00000; padding: 3px 6px; border-radius: 5px; pointer-events: auto; cursor: pointer; } .tres-etq .lig { color: #fff; width: 20px; height: 20px; line-height: 20px; text-align: center; border-radius: 50%; } .tres-etq .lig.g { background: #5e9732; } .tres-etq .lig.o { background: #e69500; } .tres-etq .lig.y { background: #8c8c8c; }
+.fl-flanges { display: flex; flex-wrap: wrap; gap: 10px; } #fl-ficha .fl-flanges svg { width: 190px; max-height: none; } .a3-flanges { display: flex; gap: 4mm; margin: 1mm 0; } .a3-flanges svg { width: 34mm; height: auto; }
+.fl-barra { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; } .fl-barra select { min-width: 220px; } .fl-barra label { display: inline-flex; gap: 4px; align-items: center; font-size: .9rem; } .fl-barra button { padding: 6px 10px; } #fl-ficha svg { width: 100%; height: auto; max-height: 60vh; border: 1px solid var(--linha); border-radius: 8px; background: #fff; } #fl-ficha .tab small { color: var(--suave); }
 #p-tres .bloco { margin-top: 8px; }
 .cores { display: flex; flex-wrap: wrap; gap: 8px; }
 .cor { width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 50%; border: 1px solid #999; }
@@ -211,6 +216,8 @@ body.trancado .ecra, body.trancado .folha-fundo { visibility: hidden; }
 .a3-fotos figure { margin: 0; min-height: 0; display: flex; flex-direction: column; }
 .a3-fotos img { flex: 1; min-height: 0; width: 100%; object-fit: contain; border: .2mm solid #999; }
 .a3-fotos figcaption { font-size: 2.6mm; margin-top: 1mm; }
+.a3-rasc { display: grid; gap: 4mm; height: 205mm; } .a3-rasc.n2 { grid-template-columns: 1fr 1fr; } .a3-rasc figure { margin: 0; min-height: 0; display: flex; flex-direction: column; } .a3-rasc img { flex: 1; min-height: 0; width: 100%; object-fit: contain; border: .2mm solid #999; } .a3-rasc figcaption { font-size: 2.8mm; margin-top: 1mm; }
+.a3-fichas { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; } .a3-fichas > div { min-width: 0; } .a3-fichas h3 { margin-top: 0; }
 .folha-fundo { overflow-x: auto; }
 
 /* Custo por capítulos */
@@ -244,3 +251,29 @@ body.trancado .ecra, body.trancado .folha-fundo { visibility: hidden; }
 .mau { color: var(--perigo); } #verif .tab { margin-top: 10px; }
 .a3-avisos { margin-top: 3mm; font-size: 2.6mm; max-width: 250mm; } .a3-avisos .av { color: #9a4b00; }
 #solucoes .tab { margin-top: 10px; } #solucoes .b-lig { min-height: 32px; padding: 2px 8px; }
+
+.campo-perfil { display: grid; grid-template-columns: 1fr; gap: 8px; }
+/* Revisão: início ao centro, campos com espaço para o texto das listas, pesquisa nos preços */
+.inicio { max-width: 720px; margin: 0 auto; }
+.inicio .lista { grid-template-columns: 1fr; }
+.inicio #nova { display: block; width: 100%; margin: 16px auto 0; }
+.campo select, .campo input { width: 100%; min-width: 0; text-overflow: ellipsis; }
+.bloco > .campo-perfil, .mais > .campo-perfil { grid-column: 1 / -1; }
+.pesquisa { margin-bottom: 8px; }
+.campo[hidden], #fp h2[hidden], #fp section[hidden] { display: none; }
+#avisos { margin-top: 12px; }
+@media (min-width: 1100px) { .trab > #p-medidas .bloco, .trab > #p-medidas .mais[open] { grid-template-columns: 1fr; } }
+/* Desenho para o cliente */
+.f-cliente figure { margin: 10px 0; }
+.f-cliente figcaption { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; }
+.f-aprova { width: 100%; border-collapse: collapse; margin-top: 18px; }
+.f-aprova th { text-align: left; font-size: 12px; padding: 4px 0; }
+.f-aprova td { border-bottom: 1px solid #999; height: 30px; padding: 0 6px; vertical-align: bottom; }
+.f-aprova td:first-child { width: 90px; color: #666; border-bottom: none; }
+/* Pergunta de confirmação na página */
+.pergunta { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.45); display: grid; place-items: center; padding: 16px; }
+.pergunta-caixa { background: var(--papel); color: inherit; border-radius: var(--raio); padding: 20px; width: min(420px, 100%); box-shadow: 0 8px 30px rgba(0,0,0,.3); }
+.pergunta-caixa p { margin: 0 0 18px; line-height: 1.45; }
+.pergunta-botoes { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+.pergunta-botoes button { width: auto; min-width: 120px; margin: 0; }
+.pergunta-botoes .b-per { background: var(--alerta); color: #fff; border: none; border-radius: 8px; min-height: 44px; text-decoration: none; display: inline-block; }
