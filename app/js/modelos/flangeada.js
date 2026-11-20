@@ -35,6 +35,8 @@ export function parafuso(dn, pn, tipo) {
 
 const MAX_ITENS = 80;
 /** Comprimento de face a face habitual (mm), só para desenhar um equipamento a que ainda não se deu a medida. */
+/** Passagem de um tê (do eixo à ponta), só para quando não há tubo antes ou depois dele no troço. */
+const PASSAGEM_TE = de => Math.round(Math.max(50, de * 0.95) / 5) * 5;
 const FACE_A_FACE = (dn, tipo) => Math.round((tipo === 'junta_desm' ? 200 + dn * 0.55 : tipo === 'medidor' ? 200 + dn * 0.5 : 140 + dn * 0.42) / 10) * 10;
 export const ANGULOS = { 90: '90°', 45: '45°', 30: '30°', 22.5: '22,5°', outro: 'Outro ângulo (medido no local)' };
 const iso = p => [(p[0] - p[2]) * 0.866, p[1] - (p[0] + p[2]) * 0.5];
@@ -67,7 +69,7 @@ export function calcFlangeada(medidas = {}) {
   const avisos = [], r = vazio(avisos);
   Object.assign(r, { arcos3d: [], curvas2d: [], blocos2d: [], blocos3d: [], etiquetas: [], etiquetas3d: [], semPontos2d: true });
   const trocos = [], ligs = [], equips = [], soFlange = {}, acs = new Map();
-  let P = [0, 0, 0], d = null, dn = dn0, sp = null, antes = { ext: ini }, soldas = 0, dnMax = dn0, pend = null;   // pend: curva acabada de fazer, à espera do tubo seguinte
+  let P = [0, 0, 0], d = null, dn = dn0, sp = null, antes = { ext: ini }, soldas = 0, dnMax = dn0, pend = null, teFim = null;   // teFim: tê à espera de tubo depois   // pend: curva acabada de fazer, à espera do tubo seguinte
   const ac = (ref, sufixo, qtd, fator) => { const k = ref + '|' + sufixo, a = acs.get(k) || { ref, qtd: 0, fator, sufixo }; a.qtd += qtd; acs.set(k, a); };
   const lado = x => (x.sp ? { nome: x.sp.id, inox: true, sp: x.sp } : x.eq ? { nome: x.eq.nome, inox: false, eq: x.eq } : { nome: NOME_EXT[x.ext], inox: x.ext === 'inox' });
 
@@ -140,12 +142,8 @@ export function calcFlangeada(medidas = {}) {
     P = mais(canto, e, T); d = e; pend = { canto, T }; sp.ult = null;
   }
 
-  const percorre = () => {
-  itens.forEach((it, i) => {
-    const n = i + 1, tipo = it && it.tipo;
-    if (tipo === 'tubo') {
-      if (vazia(it.comp)) return;
-      const comp = num(it.comp, 0), e = (it.dir !== 'segue' && DIRECOES[it.dir]) || d || DIRECOES.dir;
+  /** Tubo reto de `comp` mm na direção e (medido do canto da curva anterior, se a houver). */
+  function reto(comp, e, n) {
       if (!comp || comp > 100000) { avisos.push(`${rot}${n}: comprimento do tubo inválido (em mm).`); return; }
       if (d) {
         const c = escalar(d, e);
@@ -162,6 +160,24 @@ export function calcFlangeada(medidas = {}) {
       cota(canto, Q, String(Math.round(comp)), de);
       if (Math.abs(e[1]) < 1e-6) r.trocosPlanta.push({ a: [canto[0], canto[2]], b: [Q[0], Q[2]], texto: String(Math.round(comp)) });
       r.comprimentoTotal += comp; d = e;
+  }
+  /** Tê sem tubo depois dele: põe-se a passagem antes de seguir (flange, curva, outro tê, fim da linha) e avisa-se. */
+  function passagemDepois(extra = 0) {
+    const C = PASSAGEM_TE(DIAMETROS[teFim.dn].de);
+    avisos.push(`${rot}${teFim.n}: falta o tubo depois do tê (do eixo à flange ou à curva seguinte); foi desenhado com ${C} mm. Ponha um tubo depois do tê com a medida certa.`);
+    const n = teFim.n; teFim = null; reto(C + extra, d, n);
+  }
+
+  const percorre = () => {
+  itens.forEach((it, i) => {
+    const n = i + 1, tipo = it && it.tipo;
+    if (teFim && !(tipo === 'tubo' && vazia(it.comp))) {
+      const novo = tipo === 'tubo' ? (it.dir !== 'segue' && DIRECOES[it.dir]) || d : null, vira = tipo === 'curva' || (novo && escalar(novo, d) < 1 - 1e-9);
+      if (tipo !== 'tubo' || vira) passagemDepois(vira ? 1.5 * dn : 0); else teFim = null;
+    }
+    if (tipo === 'tubo') {
+      if (vazia(it.comp)) return;
+      reto(num(it.comp, 0), (it.dir !== 'segue' && DIRECOES[it.dir]) || d || DIRECOES.dir, n);
     } else if (tipo === 'curva') {
       const de0 = d || DIRECOES.dir, a = it.ang === 'outro' ? numLivre(it.angOutro) : numLivre(vazia(it.ang) ? 90 : it.ang), para = DIRECOES[it.para];
       if (!(a >= 1 && a <= 90)) { avisos.push(`${rot}${n}: indique o ângulo da curva (entre 1° e 90°).`); return; }
@@ -204,16 +220,23 @@ export function calcFlangeada(medidas = {}) {
       const e = d || DIRECOES.dir, dn2 = DIAMETROS[+it.dn2] && +it.dn2 <= dn ? +it.dn2 : dn;
       let dr = DIRECOES[it.dirR]; if (!dr || Math.abs(escalar(dr, e)) > 1e-6) dr = Math.abs(e[1]) < 0.9 ? (Math.abs(e[2]) < 1e-6 ? DIRECOES.frente : DIRECOES.cima) : DIRECOES.frente;
       const compR = Math.min(5000, num(it.compR, Math.round(DIAMETROS[dn].de / 2 + 150))), ramal = PONTAS[it.ramal] ? it.ramal : 'inox';
+      if (!(sp && sp.ult && igual(sp.ult.b, P)) || (teFim && igual(teFim.p, P))) {   // nada antes do tê neste troço (início, flange, equipamento, curva, outro tê)
+        const C = PASSAGEM_TE(DIAMETROS[dn].de);
+        avisos.push(`${rot}${n}: falta o tubo antes do tê (da flange ou da curva ao eixo); foi desenhado com ${C} mm. Ponha um tubo antes do tê com a medida certa.`);
+        teFim = null; reto((pend ? pend.T : 0) + C, e, n);
+      }
       semTubo(); abre(e);
       const B = mais(P, dr, compR), ult = sp.ult;
       tubo(P, B, compR, dn2); sp.ult = ult; cota(P, B, String(Math.round(compR)), DIAMETROS[dn2].de);
       if (ramal === 'ffd' || ramal === 'inox') liga({ sp }, { ext: ramal }, B, dr, dn2); else pontaSolta(sp, ramal, dn2);
       sp.tes.push({ dn, dn2, compR: Math.round(compR) }); soldas += 3;
       ac('te_inox', dn2 === dn ? 'DN' + dn : `DN${dn}×DN${dn2}`, 1, dn / 50);
+      teFim = { n, p: P.slice(), dn };
     } else avisos.push(`${rot}${n}: tipo de peça desconhecido.`);
   });
 
   // fim da linha
+  if (teFim) passagemDepois();
   const ult = d || DIRECOES.dir;
   semTubo();
   if (sp) { const c = fecha(); if (fim === 'ffd' || fim === 'inox') liga({ sp: c }, { ext: fim }, P, ult); else pontaSolta(c, fim); }
@@ -226,7 +249,7 @@ export function calcFlangeada(medidas = {}) {
     while (letras.includes(letra)) letra = letra.length === 1 && letra < 'Z' ? String.fromCharCode(letra.charCodeAt(0) + 1) : letra + '2';   // duas linhas não podem ter a mesma letra
     rot = varias ? `Linha ${letra}, peça ` : 'Peça ';
     ini = PONTAS[L.ini] ? L.ini : 'ffd'; fim = PONTAS[L.fim] ? L.fim : 'ffd';
-    itens = L.itens.slice(0, MAX_ITENS); nTro = 0; sp = null; pend = null; d = null;
+    itens = L.itens.slice(0, MAX_ITENS); nTro = 0; sp = null; pend = null; d = null; teFim = null;
     dn = DIAMETROS[+L.dn] ? +L.dn : dn0; P = [0, 0, 0]; antes = { ext: ini };
     if (li) {
       const alvo = Math.round(numLivre(L.lig)), l = L.comeca === 'lig' ? ligs.find(x => x.n === alvo && x.aberta) : null;

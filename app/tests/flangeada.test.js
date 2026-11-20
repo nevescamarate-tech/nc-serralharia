@@ -196,13 +196,45 @@ test('peças acabadas de juntar, ainda sem medidas, já se desenham: a curva vir
   const c = so([{ tipo: 'curva' }]); eq(c.arcos3d.length, 1); eq(F(c).trocos[0].nome, 'Peça com 1 curva 90° DN100'); ok(c.avisos.some(a => /para que lado/i.test(a)));
   eq(F(c).ligacoes.at(-1).p, [500, 150, 0]);
   const v = so([{ tipo: 'valvula' }]); eq(F(v).equipamentos.length, 1); ok(F(v).equipamentos[0].comp >= 150); ok(v.avisos.some(a => /face a face/i.test(a) && /confirme/i.test(a))); eq(v.blocos3d.length, 1);
-  const t = so([{ tipo: 'te' }]); eq(F(t).trocos[0].ends.length, 3); eq(t.pecas.length, 2);
+  const t = so([{ tipo: 'te' }]); eq(F(t).trocos[0].ends.length, 3); eq(t.pecas.length, 3);   // passagem, ramal e a passagem depois do tê
   // a curva vertical não pode virar para cima: vira para a direita
   const vert = dn100([T(500, 'cima'), { tipo: 'curva', para: 'cima' }]); eq(vert.arcos3d.length, 1); perto(F(vert).ligacoes.at(-1).p[0], 150, 0.1);
   // cada peça junta mais uma coisa ao desenho
   const passos = [[T(950)], [T(950), { tipo: 'curva', ang: 45, para: 'cima' }], [T(950), { tipo: 'curva', ang: 45, para: 'cima' }, T(600, 'segue')], [T(950), { tipo: 'curva', ang: 45, para: 'cima' }, T(600, 'segue'), { tipo: 'valvula' }]];
   const conta = r => r.pecas.length + r.arcos3d.length + r.blocos3d.length;
   eq(passos.map(p => conta(dn100(p))), [1, 2, 3, 4]);
+});
+
+// --- o tê tem sempre passagem dos dois lados: a flange ou a curva nunca ficam em cima do ramal ---
+const TC = { tipo: 'te', dirR: 'cima', compR: 300 };
+const ramalDe = r => r.pecas.find(p => p.b[1] === 300);
+test('tê logo no início da linha: leva passagem antes do eixo e avisa', () => {
+  const r = dn100([TC, T(1000)]), f = F(r);
+  eq(f.ligacoes[0].p, [0, 0, 0]); eq(ramalDe(r).a, [110, 0, 0]); eq(f.ligacoes.at(-1).p, [1110, 0, 0]);
+  ok(r.avisos.some(a => /antes do tê/i.test(a) && /110 mm/.test(a)), r.avisos.join(' | ')); ok(semNaN(r));
+});
+test('tê logo a seguir a uma flange: a flange fica afastada do ramal', () => {
+  const r = dn100([T(500), { tipo: 'flange' }, TC, T(400)]), f = F(r);
+  eq(f.ligacoes[1].p, [500, 0, 0]); eq(ramalDe(r).a, [610, 0, 0]); eq(f.trocos[1].L, '510 (passagem) · 300 (derivação)');
+});
+test('tê no fim da linha ou logo antes de uma flange: leva passagem depois do eixo e avisa', () => {
+  const r = dn100([T(1000), TC]);
+  eq(ramalDe(r).a, [1000, 0, 0]); eq(F(r).ligacoes.at(-1).p, [1110, 0, 0]); ok(r.avisos.some(a => /depois do tê/i.test(a)));
+  const r2 = dn100([T(1000), TC, { tipo: 'flange' }, T(500)]);
+  eq(F(r2).ligacoes[2].p, [1110, 0, 0]); eq(r2.pecas.at(-1).a, [1110, 0, 0]);
+});
+test('tê colado a uma curva: a curva não come o tubo de antes do tê nem fica em cima do ramal', () => {
+  const a = dn100([T(1000), C(90, 'frente'), TC, T(800, 'segue')]);
+  eq(ramalDe(a).a, [1000, 0, -260]); eq(a.arcos3d.length, 1);
+  const b = dn100([T(1000), TC, T(800, 'frente')]);
+  eq(b.pecas[0].L, 1000); eq(ramalDe(b).a, [1000, 0, 0]); eq(b.arcos3d.length, 1); ok(b.arcos3d[0].pts[0][0] > 1000 + 50);
+  const c = dn100([T(1000), TC, TC, T(500)]), ramais = c.pecas.filter(p => p.b[1] === 300);
+  eq(ramais.length, 2); ok(ramais[1].a[0] - ramais[0].a[0] >= 110, 'dois tês seguidos não ficam no mesmo ponto');
+  ok(semNaN(a) && semNaN(b) && semNaN(c));
+});
+test('tê com tubos dos dois lados fica como estava, sem aviso', () => {
+  const r = dn100([T(260), TC, T(260)]);
+  eq(ramalDe(r).a, [260, 0, 0]); ok(!r.avisos.some(a => /tê/i.test(a)));
 });
 
 // --- várias linhas no mesmo trabalho ---
