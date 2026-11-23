@@ -11,8 +11,8 @@ test('o resumo calculado no browser é igual ao do gerador de PIN (vetor de test
   eq(SAL, 'c9757ed6cc22b39cf25c5b9fb79ebdc8'); eq(VOLTAS, 600000);
   eq(await resumoPin('00000000'), '3b0f54cc561af329968b8d4dc4052b0cbad1dd99685b9ef7001861b1e8183813');
 });
-test('a app tem dois PIN de acesso, guardados só como resumos diferentes', () => {
-  eq(ACESSOS.length, 2); ok(temPin());
+test('a app tem cinco PIN de acesso, guardados só como resumos diferentes', () => {
+  eq(ACESSOS.length, 5); ok(temPin()); eq(new Set(ACESSOS.map(a => a.h)).size, 5);
   for (const a of ACESSOS) ok(/^[0-9a-f]{64}$/.test(a.h), 'resumo mal formado');
   ok(ACESSOS[0].h !== ACESSOS[1].h);
   ok(!/\d{4}/.test(ACESSOS.map(a => a.nome).join(' ')), 'PIN em claro no código');

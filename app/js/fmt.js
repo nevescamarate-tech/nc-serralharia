@@ -10,6 +10,11 @@ export function dec(v, casas = 2) {
   return (n < 0 ? '-' : '') + i.replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + (d ? ',' + d : '');
 }
 export const eur = v => dec(v, 2) + ' €';
+/** «Feito por X» e, se outra pessoa mexeu depois, «alterado por Y». Vazio nos trabalhos antigos. */
+export function textoQuem(x) {
+  const f = x && x.feitoPor, a = x && x.alteradoPor;
+  return [f && 'Feito por ' + f, a && a !== f && (f ? 'alterado por ' : 'Alterado por ') + a].filter(Boolean).join(', ');
+}
 export function dataPT(iso) {
   const d = iso ? new Date(iso) : new Date();
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('pt-PT');

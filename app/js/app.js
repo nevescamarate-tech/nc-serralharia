@@ -7,7 +7,7 @@ import { alcadoSVG, plantaSVG } from './desenho2d.js';
 import { desenharFormulario } from './formularios.js';
 import { folhaCliente, folhaPreparacao, folhaProposta, descricaoMaterial } from './folhas.js';
 import { PERFIS, MATERIAIS, CORES_RAL, ACESSORIOS, PAINEIS, acabamentoDe } from './catalogo.js';
-import { esc, dec, eur, dataPT, logoSVG } from './fmt.js';
+import { esc, dec, eur, dataPT, logoSVG, textoQuem } from './fmt.js';
 import { num } from './modelos/util.js';
 import { verificar, CARGAS_GUARDA, DEF_VERIF } from './verificacao.js';
 import { temPin, quemE, esperaSegundos, registarFalha, limparFalhas } from './pin.js';
@@ -60,12 +60,14 @@ function descricao(trabalho, res) {
   return `Portão ${tp}, ${mm(m.largura)} × ${mm(res.altura)}${e}${m.motor ? ', preparado para motor' : ''}.`;
 }
 
+let utilizador = null;   // nome do PIN com que se entrou: fica em cada obra e trabalho que se faz ou altera
+
 /** Junta um trabalho novo à obra e guarda. extra: { nome, notas, medidas } vindos de um desenho ou articulado. */
 async function novoTrabalho(obra, tipo, extra = {}) {
   const precos = await store.lerPrecos();
   const t = { id: store.novoId(), tipo, nome: extra.nome || '', medidas: { ...clone(TIPOS[tipo].def), ...(extra.medidas || {}) },
     material: tipo === 'tubagem' ? 'inox304' : tipo === 'flangeada' ? 'inox316' : 'aco', acabamento: tipo === 'tubagem' ? 'nenhum' : tipo === 'flangeada' ? 'decapado' : tipo === 'telheiro' || tipo === 'escada' ? 'galvanizado' : 'pintado', cor: CORES_RAL[1].hex, corNome: CORES_RAL[1].ral, margem: precos.margem,
-    horasOficina: null, horasMontagem: tipo === 'telheiro' ? 16 : tipo === 'escada' ? 8 : 4, semDeslocacao: obra.trabalhos.length > 0, notas: extra.notas || '', confirmar: extra.confirmar || '', precos, alterado: Date.now() };
+    horasOficina: null, horasMontagem: tipo === 'telheiro' ? 16 : tipo === 'escada' ? 8 : 4, semDeslocacao: obra.trabalhos.length > 0, notas: extra.notas || '', confirmar: extra.confirmar || '', precos, alterado: Date.now(), feitoPor: utilizador };
   obra.trabalhos.push(t); obra.alterado = Date.now();
   await store.guardarObra(obra).catch(falhaGravar);
   return t;
@@ -88,14 +90,14 @@ async function ecraObras() {
   ecra.innerHTML = `<header class="capa">${logoSVG({ altura: 150 })}</header>
 ${dias > 7 ? `<p class="faixa">Há alterações sem cópia de segurança há ${dias} dias. <a href="#/definicoes">Guardar cópia</a></p>` : ''}
 <div class="inicio"><section class="lista">${obras.length ? obras.map(o => `<a class="cartao" href="#/obra/${o.id}"><strong>${esc(o.nome || 'Obra sem nome')}</strong>
-<span>${esc(o.cliente || '')}</span><small>${o.trabalhos.length} trabalho(s) · ${esc(dataPT(o.data))}</small></a>`).join('')
+<span>${esc(o.cliente || '')}</span><small>${o.trabalhos.length} trabalho(s) · ${esc(dataPT(o.data))}${o.feitoPor ? ' · ' + esc(o.feitoPor) : ''}</small></a>`).join('')
     : '<p class="vazio">Ainda não há obras. Crie a primeira para começar a tirar medidas.</p>'}</section>
 <button class="b-pri" id="nova">+ Nova obra</button></div>
 <nav class="rodape"><a href="#/precos">Tabela de preços</a><a href="#/definicoes">Definições e cópias</a></nav>`;
   $('#nova').onclick = async () => {
     const n = obras.length + 1, hoje = new Date();
     const o = { id: store.novoId(), cliente: '', nome: '', morada: '', numero: `${hoje.getFullYear()}/${String(n).padStart(3, '0')}`,
-      data: hoje.toISOString().slice(0, 10), validade: 30, condicoes: '', trabalhos: [], alterado: Date.now() };
+      data: hoje.toISOString().slice(0, 10), validade: 30, condicoes: '', trabalhos: [], alterado: Date.now(), feitoPor: utilizador };
     await store.guardarObra(o); ir(`#/obra/${o.id}`);
   };
 }
@@ -104,7 +106,7 @@ ${dias > 7 ? `<p class="faixa">Há alterações sem cópia de segurança há ${d
 async function ecraObra(id) {
   const obra = await store.lerObra(id);
   if (!obra) return ir('#/');
-  const guarda = () => { obra.alterado = Date.now(); return store.guardarObra(obra).catch(falhaGravar); };
+  const guarda = () => { obra.alterado = Date.now(); if (utilizador) obra.alteradoPor = utilizador; return store.guardarObra(obra).catch(falhaGravar); };
   const linhas = obra.trabalhos.map(t => ({ t, ...contas(t) }));
   const comMedidas = linhas.filter(l => l.res.pecas.length || l.res.paineis.length);   // só estes entram no total e na proposta
   const total = comMedidas.reduce((s, l) => s + l.c.venda, 0), iva = comMedidas.reduce((s, l) => s + l.c.iva, 0);
@@ -117,7 +119,7 @@ async function ecraObra(id) {
 <h2>Trabalhos</h2>
 <section class="lista">${linhas.length ? linhas.map(({ t, c, res }) => `<a class="cartao" href="#/trabalho/${obra.id}/${t.id}">
 <strong>${esc(t.nome || TIPOS[t.tipo].nome)}</strong><span>${esc(TIPOS[t.tipo].nome)} · ${esc(descricaoMaterial(t))}</span>
-<small>${res.pecas.length ? eur(c.venda) + ' sem IVA' : 'Faltam medidas'}</small></a>`).join('') : '<p class="vazio">Sem trabalhos. Escolha o tipo para começar.</p>'}</section>
+<small>${res.pecas.length ? eur(c.venda) + ' sem IVA' : 'Faltam medidas'}${textoQuem(t) ? ' · ' + esc(textoQuem(t)) : ''}</small></a>`).join('') : '<p class="vazio">Sem trabalhos. Escolha o tipo para começar.</p>'}</section>
 <div class="tipos">${Object.entries(TIPOS).filter(([, t]) => !t.oculto).map(([k, t]) => `<button class="b-sec" data-tipo="${k}">+ ${t.nome}</button>`).join('')}</div>
 <div class="tipos dois"><a class="b-sec" href="#/desenho/${obra.id}">Medir num desenho (DXF)</a><a class="b-sec" href="#/articulado/${obra.id}">Ler articulado (Excel)</a></div>
 <a class="b-pri b-claude" href="#/claude/${obra.id}">Pedir solução ao Claude (foto ou descrição)</a>
@@ -147,7 +149,7 @@ ${linhas.length ? `<section class="bloco totais"><div><span>Total sem IVA</span>
   };
   $('#duplicar').onclick = async () => {
     const c = clone(obra);
-    c.id = store.novoId(); c.nome = (obra.nome || 'Obra') + ' (cópia)'; c.alterado = Date.now();
+    c.id = store.novoId(); c.nome = (obra.nome || 'Obra') + ' (cópia)'; c.alterado = Date.now(); c.feitoPor = utilizador; c.alteradoPor = null;
     for (const t of c.trabalhos) { t.id = store.novoId(); t.fotos = await copiarFotos(t.fotos); }
     await store.guardarObra(c).catch(falhaGravar); ir(`#/obra/${c.id}`);
   };
@@ -162,7 +164,7 @@ async function ecraTrabalho(obraId, tid, sep = 'medidas') {
   const obra = await store.lerObra(obraId), t = obra && obra.trabalhos.find(x => x.id === tid);
   if (!t) return ir('#/');
   let pend = null, sujo = false, r = contas(t);
-  const grava = () => { sujo = false; t.alterado = obra.alterado = Date.now(); return store.guardarObra(obra).catch(falhaGravar); };
+  const grava = () => { sujo = false; t.alterado = obra.alterado = Date.now(); if (utilizador) t.alteradoPor = obra.alteradoPor = utilizador; return store.guardarObra(obra).catch(falhaGravar); };
   const guarda = () => { sujo = true; clearTimeout(pend); pend = setTimeout(grava, 350); };
   const livre = t.tipo === 'livre';
   const seps = { medidas: livre ? 'Lista de peças' : 'Medidas', desenho: livre ? 'Folhas' : 'Desenho', tres: livre ? 'Material' : '3D', custo: 'Custo' };
@@ -478,7 +480,7 @@ function trancar() {
       botao.disabled = true; botao.textContent = 'A verificar…';
       let quem = null;
       try { quem = await quemE(campo.value); } finally { botao.disabled = false; botao.textContent = 'Entrar'; }
-      if (quem !== null) { await limparFalhas(); f.hidden = true; document.body.classList.remove('trancado'); feito(); return; }
+      if (quem !== null) { utilizador = quem; await limparFalhas(); f.hidden = true; document.body.classList.remove('trancado'); feito(); return; }
       campo.value = '';
       const espera = await registarFalha();
       diz(espera > 0 ? `PIN errado. Aguarde ${tempo(espera)} antes de tentar outra vez.` : 'PIN errado.');
